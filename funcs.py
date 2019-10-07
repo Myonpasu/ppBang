@@ -3,6 +3,8 @@ from datetime import timedelta
 
 import numpy as np
 
+import db
+
 
 def allowed_mods(playmode):
     """Return the set of possible enabled mods for a game mode."""
@@ -46,6 +48,20 @@ def counts_to_accuracy(count50, count100, count300, countmiss, countgeki, countk
         print("Invalid game mode.")
         return
     return acc
+
+
+def form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, threshold):
+    """Form a directed edge between two maps if the number of common users exceeds a threshold."""
+    shared_users = tuple(db.query_shared_users(cur_scores_single, scores_table, *map_1, *map_2))
+    if len(shared_users) >= threshold:
+        user_accs_1, user_times_1 = db.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_1)
+        user_accs_2, user_times_2 = db.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_2)
+        time_weights = timedelta_weights(user_times_1, user_times_2, weeks=8)
+        t_stat = tstat_paired_weighted(user_accs_1, user_accs_2, time_weights)
+        if not np.isnan(t_stat):
+            graph.add_edge(map_1, map_2, weight=t_stat)
+        else:
+            print(f"Map pair has undefined t-statistic (zero variance). Skipping edge formation {(map_1, map_2)}.")
 
 
 def play_mode(game_mode):
@@ -92,6 +108,8 @@ def tstat_paired_weighted(a, b, weights):
     sum_weight_squares = sum(w * w for w in weights)
     mean = np.dot(data, weights) / sum_weights
     sumsquares = np.dot((data - mean) ** 2, weights)
+    if sumsquares == 0:
+        return np.nan
     var = sumsquares / (sum_weights - sum_weight_squares / sum_weights)
     std = np.sqrt(var)
     std_mean = std * np.sqrt(sum_weight_squares) / sum_weights
