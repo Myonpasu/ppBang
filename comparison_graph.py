@@ -19,7 +19,7 @@ comparison_threshold = 30
 # Number of common players required to make comparison with game modifier. Must be strictly greater than 1.
 mod_comparison_threshold = 2
 
-scores_db_loc, beatmaps_db_loc, beatmapsets_db_loc = db.db_location(game_mode, dump_type, dump_date)
+beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc = db.db_location(game_mode, dump_type, dump_date)
 playmode = funcs.play_mode(game_mode)
 cursors = db.db_cursors(playmode, beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc)
 cur_beatmaps, cur_beatmapsets, cur_scores, cur_scores_single, cur_scores_acc_time = cursors

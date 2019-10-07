@@ -31,10 +31,10 @@ def db_location(game_mode, dump_type, dump_date):
     else:
         print('Invalid game mode specified.')
         return
-    scores_db_location = f"./{dump_date}_performance{mode_folder_str}{dump_type}/osu_scores{mode_str}high.db"
     beatmaps_db_location = f"./{dump_date}_performance{mode_folder_str}{dump_type}/osu_beatmaps.db"
     beatmapsets_db_location = f"./{dump_date}_performance{mode_folder_str}{dump_type}/osu_beatmapsets.db"
-    return scores_db_location, beatmaps_db_location, beatmapsets_db_location
+    scores_db_location = f"./{dump_date}_performance{mode_folder_str}{dump_type}/osu_scores{mode_str}high.db"
+    return beatmaps_db_location, beatmapsets_db_location, scores_db_location
 
 
 def db_tables(game_mode):
@@ -49,10 +49,9 @@ def db_tables(game_mode):
 
 
 def query_accs_times(cursor, scores_table, users, beatmap_id, enabled_mods):
-    user_scores = list(cursor.execute(
-        "SELECT count50, count100, count300, countmiss, countgeki, countkatu, date FROM ? "
-        f"WHERE user_id IN {users} AND beatmap_id == ? AND enabled_mods == ?",
-        (scores_table, beatmap_id, enabled_mods)))
+    query = f"SELECT count50, count100, count300, countmiss, countgeki, countkatu, date FROM {scores_table} " \
+            f"WHERE user_id IN {users} AND beatmap_id == ? AND enabled_mods == ?"
+    user_scores = list(cursor.execute(query, (beatmap_id, enabled_mods)))
     user_accs, user_times = zip(*user_scores)
     return user_accs, user_times
 
@@ -70,18 +69,17 @@ def query_beatmapsets(cursor, status):
 
 
 def query_maps(cursor, scores_table, beatmaps, mods):
-    maps = cursor.execute(
-        f"SELECT DISTINCT beatmap_id, enabled_mods FROM ? WHERE beatmap_id IN {beatmaps} AND enabled_mods IN {mods}",
-        (scores_table,))
+    query = f"SELECT DISTINCT beatmap_id, enabled_mods FROM {scores_table} " \
+            f"WHERE beatmap_id IN ({', '.join('?' * len(beatmaps))}) AND enabled_mods IN ({', '.join('?' * len(mods))})"
+    maps = cursor.execute(query, beatmaps + mods)
     return maps
 
 
 def query_shared_users(cursor, scores_table, beatmap_id_1, enabled_mods_1, beatmap_id_2, enabled_mods_2):
-    users = cursor.execute(
-        "SELECT user_id FROM ? "
-        "WHERE beatmap_id == ? AND enabled_mods == ? "
-        "INTERSECT "
-        "SELECT user_id FROM ? "
-        "WHERE beatmap_id == ? AND enabled_mods == ?",
-        (scores_table, beatmap_id_1, enabled_mods_1, scores_table, beatmap_id_2, enabled_mods_2))
+    query = f"SELECT user_id FROM {scores_table} " \
+            "WHERE beatmap_id == ? AND enabled_mods == ? " \
+            "INTERSECT " \
+            f"SELECT user_id FROM {scores_table} " \
+            "WHERE beatmap_id == ? AND enabled_mods == ?"
+    users = cursor.execute(query, (beatmap_id_1, enabled_mods_1, beatmap_id_2, enabled_mods_2))
     return users
