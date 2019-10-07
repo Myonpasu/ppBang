@@ -17,7 +17,7 @@ dump_date = '2019_09_01'
 # Number of common players required to make comparison. Must be strictly greater than 1.
 comparison_threshold = 30
 # Number of common players required to make comparison with game modifier. Must be strictly greater than 1.
-mod_comparison_threshold = 2
+mod_comparison_threshold = 3
 
 # Preparation for database queries.
 playmode = funcs.play_mode(game_mode)

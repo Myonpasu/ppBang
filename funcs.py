@@ -110,7 +110,10 @@ def tstat_paired_weighted(a, b, weights):
     sumsquares = np.dot((data - mean) ** 2, weights)
     if sumsquares == 0:
         return np.nan
-    var = sumsquares / (sum_weights - sum_weight_squares / sum_weights)
+    correction = sum_weights - sum_weight_squares / sum_weights
+    if correction == 0:
+        return np.nan
+    var = sumsquares / correction
     std = np.sqrt(var)
     std_mean = std * np.sqrt(sum_weight_squares) / sum_weights
     tstat = mean / std_mean
