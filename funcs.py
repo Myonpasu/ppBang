@@ -7,7 +7,7 @@ import db
 
 
 def allowed_mods(playmode):
-    """Return the set of possible enabled mods for a game mode, excluding no-mod."""
+    """Return the set of possible enabled mods for a game mode."""
     # None = 0, NF = 1, EZ = 2, HD = 8, HR = 16, DT = 64, HT = 256, NC = 512, FL = 1024, FI = 1048576.
     # NC is only set along with DT, giving 576.
     mods = [2, 8, 16, 64, 256, 1024, 1048576] if playmode == 3 else [2, 8, 16, 64, 256, 1024]
@@ -17,7 +17,7 @@ def allowed_mods(playmode):
                   not ((2 in p and 16 in p) or (64 in p and 256 in p) or (8 in p and 1048576 in p)))
     else:
         combos = (p for p in mod_powerset if not ((2 in p and 16 in p) or (64 in p and 256 in p)))
-    allowed = tuple(sum(c) for c in combos if c)
+    allowed = tuple(sum(c) for c in combos)
     return allowed
 
 

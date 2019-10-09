@@ -35,8 +35,9 @@ ranked_mods = funcs.allowed_mods(playmode)
 for bms in tqdm(beatmapsets, desc='edges (with mods)'):
     beatmaps = tuple(db.query_beatmapset_beatmaps(cur_beatmaps, bms))
     maps = db.query_maps(cur_scores, scores_table, beatmaps, ranked_mods)
-    for pair in combinations(maps, 2):
-        funcs.form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, *pair, mod_comparison_threshold)
+    for p in combinations(maps, 2):
+        if p[0][1] != 0 and p[1][1] != 0:
+            funcs.form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, *p, mod_comparison_threshold)
 
 # Form edges between all appropriate no-mod map pairs.
 all_beatmaps = list(db.query_beatmaps(cur_beatmaps, cur_scores_single, scores_table, statuses, comparison_threshold, 0))
