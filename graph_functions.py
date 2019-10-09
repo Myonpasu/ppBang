@@ -3,7 +3,7 @@ from datetime import timedelta
 
 import numpy as np
 
-import db
+import database
 
 
 def allowed_mods(playmode):
@@ -52,10 +52,10 @@ def counts_to_accuracy(count50, count100, count300, countmiss, countgeki, countk
 
 def form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, threshold, report=False):
     """Form a directed edge between two maps if the number of common users exceeds a threshold."""
-    shared_users = tuple(db.query_shared_users(cur_scores_single, scores_table, *map_1, *map_2))
+    shared_users = tuple(database.query_shared_users(cur_scores_single, scores_table, *map_1, *map_2))
     if len(shared_users) >= threshold:
-        user_accs_1, user_times_1 = db.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_1)
-        user_accs_2, user_times_2 = db.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_2)
+        user_accs_1, user_times_1 = database.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_1)
+        user_accs_2, user_times_2 = database.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_2)
         time_weights = timedelta_weights(user_times_1, user_times_2, weeks=8)
         t_stat = tstat_paired_weighted(user_accs_1, user_accs_2, time_weights)
         if not np.isnan(t_stat):

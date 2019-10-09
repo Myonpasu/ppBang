@@ -1,7 +1,7 @@
 import sqlite3
 
-from funcs import counts_to_accuracy
-from funcs import ranked_status
+from graph_functions import counts_to_accuracy
+from graph_functions import ranked_status
 
 
 def db_cursors(playmode, beatmaps_db_location, beatmapsets_db_location, scores_db_location):
