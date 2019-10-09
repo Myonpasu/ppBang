@@ -32,7 +32,7 @@ graph = nx.DiGraph()
 # Form edges between all appropriate modified map pairs.
 beatmapsets = list(database.query_beatmapsets(cur_beatmapsets, statuses))
 ranked_mods = graph_functions.allowed_mods(playmode)
-for bms in tqdm(beatmapsets, desc='edges (with mods)'):
+for bms in tqdm(beatmapsets, desc='Edges (with mods)'):
     beatmaps = tuple(database.query_beatmapset_beatmaps(cur_beatmaps, bms))
     maps = database.query_maps(cur_scores, scores_table, beatmaps, ranked_mods)
     for pair in combinations(maps, 2):
@@ -43,7 +43,7 @@ for bms in tqdm(beatmapsets, desc='edges (with mods)'):
 all_beatmaps = list(database.query_beatmaps(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, 0))
 num_beatmaps = len(all_beatmaps)
 num_beatmap_pairs = num_beatmaps * (num_beatmaps - 1) // 2
-for beatmap_pair in tqdm(combinations(all_beatmaps, 2), total=num_beatmap_pairs, desc='edges (no mods)'):
+for beatmap_pair in tqdm(combinations(all_beatmaps, 2), total=num_beatmap_pairs, desc='Edges (no mods)'):
     map_1, map_2 = (beatmap_pair[0], 0), (beatmap_pair[1], 0)
     graph_functions.form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, threshold)
 
