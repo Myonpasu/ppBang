@@ -79,18 +79,18 @@ def play_mode(game_mode):
     return playmode
 
 
-def ranked_status(status_set):
-    approved_set = set()
-    for s in status_set:
+def ranked_status(status_names):
+    statuses = set()
+    for s in status_names:
         if s == 'ranked':
-            approved_set.add(1)
+            statuses.add(1)
         elif s == 'approved':
-            approved_set.add(2)
+            statuses.add(2)
         elif s == 'qualified':
-            approved_set.add(3)
+            statuses.add(3)
         elif s == 'loved':
-            approved_set.add(4)
-    return approved_set
+            statuses.add(4)
+    return statuses
 
 
 def timedelta_weights(user_times_1, user_times_2, weeks=8):
