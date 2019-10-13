@@ -1,10 +1,13 @@
 from itertools import combinations
+from multiprocessing.dummy import Pool
 
 import networkx as nx
 from tqdm import tqdm
 
 import database
-import graph_functions
+from graph_functions import allowed_mods
+from graph_functions import form_edge
+from graph_functions import play_mode
 
 # Game mode.
 game_mode = 'standard'
@@ -20,10 +23,10 @@ threshold = 30
 mod_threshold = 3
 
 # Preparation for database queries.
-playmode = graph_functions.play_mode(game_mode)
+playmode = play_mode(game_mode)
 beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc = database.db_location(game_mode, dump_type, dump_date)
-cursors = database.db_cursors(playmode, beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc)
-cur_beatmaps, cur_beatmapsets, cur_scores, cur_scores_single, cur_scores_acc_time = cursors
+cur_beatmaps, cur_beatmapsets = database.db_cursors_beatmaps(beatmaps_db_loc, beatmapsets_db_loc)
+cur_scores, cur_scores_single, cur_scores_acc_time = database.db_cursors_scores(playmode, scores_db_loc)
 scores_table = database.db_tables(game_mode)[0]
 
 # Initialise graph.
@@ -31,21 +34,25 @@ graph = nx.DiGraph()
 
 # Form edges between all appropriate modified map pairs.
 beatmapsets = list(database.query_beatmapsets(cur_beatmapsets, statuses))
-ranked_mods = graph_functions.allowed_mods(playmode)
+ranked_mods = allowed_mods(playmode)
 for bms in tqdm(beatmapsets, desc='Edges (with mods)'):
     beatmaps = tuple(database.query_beatmapset_beatmaps(cur_beatmaps, bms))
     maps = database.query_maps(cur_scores, scores_table, beatmaps, ranked_mods)
     for pair in combinations(maps, 2):
         if pair[0][1] != 0 and pair[1][1] != 0:
-            graph_functions.form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, *pair, mod_threshold)
+            form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, *pair, mod_threshold)
 
 # Form edges between all appropriate no-mod map pairs.
 all_beatmaps = list(database.query_beatmaps(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, 0))
 num_beatmaps = len(all_beatmaps)
 num_beatmap_pairs = num_beatmaps * (num_beatmaps - 1) // 2
-for beatmap_pair in tqdm(combinations(all_beatmaps, 2), total=num_beatmap_pairs, desc='Edges (no mods)'):
-    map_1, map_2 = (beatmap_pair[0], 0), (beatmap_pair[1], 0)
-    graph_functions.form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, threshold)
+if __name__ == '__main__':
+    with Pool(processes=4) as pool:
+        for beatmap_pair in tqdm(combinations(all_beatmaps, 2), total=num_beatmap_pairs, desc='Edges (no mods)'):
+            map_1, map_2 = (beatmap_pair[0], 0), (beatmap_pair[1], 0)
+            cur_scores, cur_scores_single, cur_scores_acc_time = database.db_cursors_scores(playmode, scores_db_loc)
+            form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, threshold)
+            pool.apply_async(form_edge, form_edge_args)
 
 # Write graph to file.
 nx.write_graphml(graph, 'comparison_graph.graphml')
