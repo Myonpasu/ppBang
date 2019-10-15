@@ -1,5 +1,4 @@
 from itertools import combinations
-from multiprocessing.dummy import Pool
 
 import networkx as nx
 from tqdm import tqdm
@@ -35,12 +34,11 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     all_beatmaps = list(database.query_beatmaps(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, 0))
     num_beatmaps = len(all_beatmaps)
     num_beatmap_pairs = num_beatmaps * (num_beatmaps - 1) // 2
-    with Pool() as pool:
-        for beatmap_pair in tqdm(combinations(all_beatmaps, 2), total=num_beatmap_pairs, desc='Edges (no mods)'):
-            map_1, map_2 = (beatmap_pair[0], 0), (beatmap_pair[1], 0)
-            cur_scores, cur_scores_single, cur_scores_acc_time = database.db_cursors_scores(playmode, scores_db_loc)
-            form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, threshold)
-            pool.apply_async(form_edge, form_edge_args)
+    for beatmap_pair in tqdm(combinations(all_beatmaps, 2), total=num_beatmap_pairs, desc='Edges (no mods)'):
+        map_1, map_2 = (beatmap_pair[0], 0), (beatmap_pair[1], 0)
+        cur_scores, cur_scores_single, cur_scores_acc_time = database.db_cursors_scores(playmode, scores_db_loc)
+        form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, threshold)
+        form_edge(*form_edge_args)
 
     return graph
 
