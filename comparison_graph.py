@@ -1,4 +1,6 @@
 from itertools import combinations
+from os import remove
+from os.path import isfile
 
 import networkx as nx
 from tqdm import tqdm
@@ -52,8 +54,16 @@ if __name__ == '__main__':
     data_dump_date = '2019_09_01'
     # Beatmap difficulties will be calculated for the following beatmapset ranked statuses.
     status_names = {'ranked', 'approved', 'loved'}
+    # Output filename.
+    filename = 'comparison_graph.gpickle'
 
     comparison_graph = construct_graph(game_mode, data_dump_type, data_dump_date, status_names)
 
     # Write graph to file.
-    nx.write_graphml(comparison_graph, 'comparison_graph.graphml')
+    try:
+        nx.write_gpickle(comparison_graph, filename)
+        print(f'Graph successfully written as pickle to {filename}')
+    except MemoryError:
+        if isfile(filename):
+            remove(filename)
+        print('MemoryError occurred when writing pickle')
