@@ -4,11 +4,11 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
 
-def sparse_solve_minres(a, b, precondition=False):
-    """Solve linear equations a.x = b for x using minimal residual method."""
+def sparse_solve_gmres(a, b, precondition=False):
+    """Solve linear equations a.x = b for x using generalized minimal residual method."""
     precon = spla.LinearOperator(a.shape, spla.spilu(a).solve) if precondition else None
-    x, info = spla.minres(a, b, M=precon)
-    print(f'MINRES solver finished with exit code {info}')
+    x, info = spla.gmres(a, b, M=precon)
+    print(f'GMRES solver finished with exit code {info}')
     return x
 
 
@@ -49,7 +49,7 @@ def linear_system(undirected_graph, nodelist, neighbour_count, adj_mat):
 def map_difficulties(file_location):
     undirected_graph, nodelist, neighbour_count, adj_mat = process_graph(file_location)
     system_mat, system_vec = linear_system(undirected_graph, nodelist, neighbour_count, adj_mat)
-    diffs = sparse_solve_minres(system_mat, system_vec)
+    diffs = sparse_solve_gmres(system_mat, system_vec)
     return diffs, nodelist
 
 
