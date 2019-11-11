@@ -46,13 +46,13 @@ def linear_system(undirected_graph, nodelist, neighbour_count, adj_mat):
     return system_mat.tocsr(), system_vec
 
 
-def map_difficulties(file_loc):
-    undirected_graph, nodelist, neighbour_count, adj_mat = process_graph(file_loc)
+def map_difficulties(file_location):
+    undirected_graph, nodelist, neighbour_count, adj_mat = process_graph(file_location)
     system_mat, system_vec = linear_system(undirected_graph, nodelist, neighbour_count, adj_mat)
     diffs = sparse_solve_minres(system_mat, system_vec)
     return diffs, nodelist
 
 
 if __name__ == '__main__':
-    filename = 'comparison_graph_test.gpickle'
+    filename = 'comparison_graph.gpickle'
     difficulties, node_list = map_difficulties(filename)
