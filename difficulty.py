@@ -17,7 +17,7 @@ def process_graph(file_location):
     nodelist = list(graph)
     neighbour_count = np.array([len(list(graph.predecessors(n))) + len(list(graph.successors(n))) for n in nodelist])
     adj_mat = nx.to_scipy_sparse_matrix(graph, nodelist=nodelist)
-    undirected_graph = graph.to_undirected()
+    undirected_graph = graph.to_undirected(as_view=True)
     return undirected_graph, nodelist, neighbour_count, adj_mat
 
 
@@ -31,7 +31,7 @@ def linear_system_row(undirected_graph, nodelist, neighbour_count, num_nodes, ro
 
 def linear_system(undirected_graph, nodelist, neighbour_count, adj_mat):
     shape = adj_mat.shape
-    comp_mat = adj_mat.transpose() - adj_mat
+    comp_mat = adj_mat - adj_mat.transpose()
     num_nodes = shape[0]
     system_vec = 1 + comp_mat.sum(axis=1) / (comp_mat.max() * (num_nodes - 1))
     system_mat = sp.lil_matrix(shape, dtype=int)
@@ -50,9 +50,10 @@ def map_difficulties(file_location):
     undirected_graph, nodelist, neighbour_count, adj_mat = process_graph(file_location)
     system_mat, system_vec = linear_system(undirected_graph, nodelist, neighbour_count, adj_mat)
     diffs = sparse_solve_gmres(system_mat, system_vec)
-    return diffs, nodelist
+    return nodelist, diffs
 
 
 if __name__ == '__main__':
     filename = 'comparison_graph.gpickle'
-    difficulties, node_list = map_difficulties(filename)
+    node_list, difficulties = map_difficulties(filename)
+    difficulties /= np.amax(difficulties)

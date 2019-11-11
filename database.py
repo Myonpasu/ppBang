@@ -67,7 +67,7 @@ def query_beatmaps(cur_beatmaps, cur_scores_single, scores_table, status_names, 
     statuses = tuple(ranked_status(status_names))
     beatmaps = cur_beatmaps.execute(
         "SELECT beatmap_id FROM osu_beatmaps "
-        f"WHERE approved IN ({', '.join('?' * len(statuses))})"
+        f"WHERE approved IN ({', '.join('?' * len(statuses))}) "
         f"AND beatmap_id IN {filtered_beatmaps}", statuses)
     return beatmaps
 
