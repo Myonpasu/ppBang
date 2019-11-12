@@ -40,7 +40,7 @@ def linear_system(edge_set, nodelist, neighbour_count, adj_mat):
     system_vec = adj_mat.sum(axis=1).A1 - adj_mat.sum(axis=0).A1  # A - A^T
     system_vec += max_abs_weight * (num_nodes - 1)
     print('Initial linear system vector calculated')
-    min_neighbour_idx = neighbour_count.index(min(neighbour_count))
+    min_neighbour_idx = np.argmin(neighbour_count)
     min_neighbour_row = linear_system_row(edge_set, nodelist, neighbour_count, num_nodes, min_neighbour_idx)
     system_mat = sp.lil_matrix((num_nodes, num_nodes), dtype=int)
     system_mat[min_neighbour_idx] = min_neighbour_row
