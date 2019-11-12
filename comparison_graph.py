@@ -11,7 +11,7 @@ from graph_functions import form_edge
 from graph_functions import play_mode
 
 
-def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=3):
+def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=4):
     # Preparation for database queries.
     playmode = play_mode(mode)
     beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc = database.db_location(mode, dump_type, dump_date)
