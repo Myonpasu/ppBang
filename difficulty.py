@@ -14,11 +14,24 @@ def sparse_solve_gmres(a, b, precondition=False):
 
 def process_graph(file_location):
     graph = nx.read_gpickle(file_location)
+    print('Graph successfully read from file')
     nodelist = list(graph)
-    neighbour_count = np.array([len(list(graph.predecessors(n))) + len(list(graph.successors(n))) for n in nodelist])
-    adj_mat = nx.to_scipy_sparse_matrix(graph, nodelist=nodelist)
+    num_nodes = len(nodelist)
+    max_abs_weight = max(abs(e[-1]['weight']) for e in graph.out_edges(data=True))
+    print('Found maximum weight magnitude of edges')
+    neighbour_count = []
+    system_vec = []
+    for n in nodelist:
+        out_edges = graph.out_edges(n, data=True)
+        in_edges = graph.in_edges(n, data=True)
+        neighbour_count.append(len(in_edges) + len(out_edges))
+        vec_component = sum(e[-1]['weight'] for e in out_edges)
+        vec_component -= sum(e[-1]['weight'] for e in in_edges)
+        vec_component += max_abs_weight * (num_nodes - 1)
+        system_vec.append(vec_component)
+    print('Initial linear system vector calculated')
     undirected_graph = graph.to_undirected(as_view=True)
-    return undirected_graph, nodelist, neighbour_count, adj_mat
+    return undirected_graph, nodelist, neighbour_count, num_nodes, system_vec
 
 
 def linear_system_row(undirected_graph, nodelist, neighbour_count, num_nodes, row_index):
@@ -29,14 +42,10 @@ def linear_system_row(undirected_graph, nodelist, neighbour_count, num_nodes, ro
     return row
 
 
-def linear_system(undirected_graph, nodelist, neighbour_count, adj_mat):
-    shape = adj_mat.shape
-    comp_mat = adj_mat - adj_mat.transpose()
-    num_nodes = shape[0]
-    system_vec = 1 + comp_mat.sum(axis=1) / (comp_mat.max() * (num_nodes - 1))
-    system_mat = sp.lil_matrix(shape, dtype=int)
-    min_neighbour_idx = neighbour_count.argmin()
+def linear_system(undirected_graph, nodelist, neighbour_count, num_nodes, system_vec):
+    min_neighbour_idx = neighbour_count.index(min(neighbour_count))
     min_neighbour_row = linear_system_row(undirected_graph, nodelist, neighbour_count, num_nodes, min_neighbour_idx)
+    system_mat = sp.lil_matrix((num_nodes, num_nodes), dtype=int)
     system_mat[min_neighbour_idx] = min_neighbour_row
     for i in range(num_nodes):
         if i != min_neighbour_idx:
@@ -47,8 +56,9 @@ def linear_system(undirected_graph, nodelist, neighbour_count, adj_mat):
 
 
 def map_difficulties(file_location):
-    undirected_graph, nodelist, neighbour_count, adj_mat = process_graph(file_location)
-    system_mat, system_vec = linear_system(undirected_graph, nodelist, neighbour_count, adj_mat)
+    undirected_graph, nodelist, neighbour_count, num_nodes, system_vec = process_graph(file_location)
+    system_mat, system_vec = linear_system(undirected_graph, nodelist, neighbour_count, num_nodes, system_vec)
+    print('Linear system prepared to solve')
     diffs = sparse_solve_gmres(system_mat, system_vec)
     return nodelist, diffs
 
