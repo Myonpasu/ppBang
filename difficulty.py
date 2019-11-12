@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
+from tqdm import tqdm
 
 
 def sparse_solve_gmres(a, b, precondition=False):
@@ -52,7 +53,7 @@ def linear_system(undirected_graph, nodelist, neighbour_count, adj_mat):
     min_neighbour_idx = neighbour_count.index(min(neighbour_count))
     min_neighbour_row = linear_system_row(undirected_graph, nodelist, neighbour_count, num_nodes, min_neighbour_idx)
     row_ind, col_ind, data = row_to_ijv(min_neighbour_row, num_nodes, min_neighbour_idx)
-    for i in range(num_nodes):
+    for i in tqdm(range(num_nodes), total=num_nodes, desc='Calculating reduced linear system'):
         if i != min_neighbour_idx:
             system_vec[i] = system_vec[i] - system_vec[min_neighbour_idx]
             row = linear_system_row(undirected_graph, nodelist, neighbour_count, num_nodes, i) - min_neighbour_row
