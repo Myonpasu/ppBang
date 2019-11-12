@@ -57,7 +57,7 @@ def form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1
         user_accs_1, user_times_1 = database.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_1)
         user_accs_2, user_times_2 = database.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_2)
         time_weights = timedelta_weights(user_times_1, user_times_2, weeks=8)
-        if (time_weights >= 0.125).sum() >= threshold:  # Check more than threshold score pairs were within 24 weeks.
+        if (time_weights >= 0.125).sum() >= threshold:  # Check at least threshold score pairs were within 24 weeks.
             t_stat = tstat_paired_weighted(user_accs_1, user_accs_2, time_weights)
             if not np.isnan(t_stat):
                 graph.add_edge(map_1, map_2, weight=t_stat)
