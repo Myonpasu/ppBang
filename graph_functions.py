@@ -7,7 +7,7 @@ import database
 
 
 def allowed_mods(playmode):
-    """Return the set of possible enabled mods for a game mode."""
+    """Return the set of possible enabled mods for a game mode, including no-mod."""
     # None = 0, NF = 1, EZ = 2, HD = 8, HR = 16, DT = 64, HT = 256, NC = 512, FL = 1024, FI = 1048576.
     # NC is only set along with DT, giving 576.
     mods = [2, 8, 16, 64, 256, 1024, 1048576] if playmode == 3 else [2, 8, 16, 64, 256, 1024]

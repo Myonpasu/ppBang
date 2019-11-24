@@ -59,19 +59,6 @@ def query_accs_times(cursor, scores_table, users, beatmap_id, enabled_mods):
     return user_accs, user_times
 
 
-def query_beatmaps(cur_beatmaps, cur_scores_single, scores_table, status_names, threshold, enabled_mods):
-    filtered_beatmaps = tuple(cur_scores_single.execute(
-        f"SELECT beatmap_id FROM {scores_table} "
-        "GROUP BY beatmap_id "
-        "HAVING SUM(CASE enabled_mods WHEN ? THEN 1 ELSE 0 END) >= ?", (enabled_mods, threshold)))
-    statuses = tuple(ranked_status(status_names))
-    beatmaps = cur_beatmaps.execute(
-        "SELECT beatmap_id FROM osu_beatmaps "
-        f"WHERE approved IN ({', '.join('?' * len(statuses))}) "
-        f"AND beatmap_id IN {filtered_beatmaps}", statuses)
-    return beatmaps
-
-
 def query_beatmapset_beatmaps(cursor, beatmapset):
     beatmaps = cursor.execute("SELECT beatmap_id FROM osu_beatmaps WHERE beatmapset_id == ?", (beatmapset,))
     return beatmaps
@@ -88,6 +75,20 @@ def query_maps(cursor, scores_table, beatmaps, mods):
     query = f"SELECT DISTINCT beatmap_id, enabled_mods FROM {scores_table} " \
             f"WHERE beatmap_id IN ({', '.join('?' * len(beatmaps))}) AND enabled_mods IN ({', '.join('?' * len(mods))})"
     maps = cursor.execute(query, beatmaps + mods)
+    return maps
+
+
+def query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, status_names, threshold, enabled_mod):
+    filtered_beatmaps = tuple(cur_scores_single.execute(
+        f"SELECT beatmap_id FROM {scores_table} "
+        "GROUP BY beatmap_id "
+        "HAVING SUM(CASE enabled_mods WHEN ? THEN 1 ELSE 0 END) >= ?", (enabled_mod, threshold)))
+    statuses = tuple(ranked_status(status_names))
+    beatmaps = cur_beatmaps.execute(
+        "SELECT beatmap_id FROM osu_beatmaps "
+        f"WHERE approved IN ({', '.join('?' * len(statuses))}) "
+        f"AND beatmap_id IN {filtered_beatmaps}", statuses)
+    maps = [(beatmap_id, enabled_mod) for beatmap_id in beatmaps]
     return maps
 
 
