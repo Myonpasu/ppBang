@@ -1,7 +1,33 @@
 import sqlite3
 
-from graph_functions import counts_to_accuracy
-from graph_functions import ranked_status
+
+def counts_to_accuracy(count50, count100, count300, countmiss, countgeki, countkatu, playmode=0):
+    if playmode == 0:
+        # osu!standard
+        total_hits = count50 + count100 + count300 + countmiss
+        acc = (count50 / 6 + count100 / 3 + count300)
+        acc /= total_hits
+    elif playmode == 1:
+        # osu!taiko
+        total_hits = count50 + count100 + count300 + countmiss
+        acc = count100 / 2 + count300
+        acc /= total_hits
+    elif playmode == 2:
+        # osu!catch
+        total_hits = count50 + count100 + count300 + countmiss + countkatu
+        if total_hits == 0:
+            return 0
+        total_successful_hits = count50 + count100 + count300
+        acc = total_successful_hits / total_hits
+    elif playmode == 3:
+        # osu!mania
+        total_hits = count50 + count100 + count300 + countmiss + countgeki + countkatu
+        acc = count50 / 6 + count100 / 3 + countkatu * 2 / 3 + count300 + countgeki
+        acc /= total_hits
+    else:
+        print("Invalid game mode.")
+        return
+    return acc
 
 
 def db_cursors_beatmaps(beatmaps_db_location, beatmapsets_db_location):
@@ -100,3 +126,17 @@ def query_shared_users(cursor, scores_table, beatmap_id_1, enabled_mods_1, beatm
             "WHERE beatmap_id == ? AND enabled_mods == ?"
     users = cursor.execute(query, (beatmap_id_1, enabled_mods_1, beatmap_id_2, enabled_mods_2))
     return users
+
+
+def ranked_status(status_names):
+    statuses = set()
+    for s in status_names:
+        if s == 'ranked':
+            statuses.add(1)
+        elif s == 'approved':
+            statuses.add(2)
+        elif s == 'qualified':
+            statuses.add(3)
+        elif s == 'loved':
+            statuses.add(4)
+    return statuses
