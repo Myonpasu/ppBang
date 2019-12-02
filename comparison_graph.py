@@ -140,7 +140,7 @@ if __name__ == '__main__':
     # Top 10000 players ('top') or random ('random') data dump?
     data_dump_type = 'top'
     # Date of dump to use.
-    data_dump_date = '2019_09_01'
+    data_dump_date = '2019_12_01'
     # Beatmap difficulties will be calculated for the following beatmapset ranked statuses.
     status_names = {'ranked', 'approved', 'loved'}
     # Output filename.
