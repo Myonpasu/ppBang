@@ -55,7 +55,7 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
             mod_pairs = combinations(mod_maps, 2)
             mod_nomod_pairs = product(mod_maps, nomod_maps)
             map_pairs = chain(mod_pairs, mod_nomod_pairs)
-            num_map_pairs = num_mod_maps * (num_nomod_maps + (num_mod_maps - 1) // 2)
+            num_map_pairs = num_mod_maps * num_nomod_maps + num_mod_maps * (num_mod_maps - 1) // 2
         for pair in tqdm(map_pairs, total=num_map_pairs, desc=f'Edges ({readable_mod(mod)})'):
             map_1, map_2 = pair[0], pair[1]
             map_1_mod, map_2_mod = map_1[1], map_2[1]
