@@ -60,7 +60,6 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
             map_1, map_2 = pair[0], pair[1]
             map_1_mod, map_2_mod = map_1[1], map_2[1]
             pair_threshold = mod_threshold if map_1_mod != 0 or map_2_mod != 0 else threshold
-            cur_scores, cur_scores_single, cur_scores_acc_time = database.db_cursors_scores(playmode, scores_db_loc)
             form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, pair_threshold)
             form_edge(*form_edge_args)
 
