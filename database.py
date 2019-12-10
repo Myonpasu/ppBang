@@ -30,25 +30,28 @@ def counts_to_accuracy(count50, count100, count300, countmiss, countgeki, countk
     return acc
 
 
-def db_cursors_beatmaps(beatmaps_db_location, beatmapsets_db_location):
+def db_cursors_multi(playmode, beatmaps_db_location, scores_db_location):
     con_beatmaps = sqlite3.connect(beatmaps_db_location)
+    con_beatmaps.execute("PRAGMA mmap_size=67108864")
     con_beatmaps.row_factory = lambda cursor, row: row[0]
     cur_beatmaps = con_beatmaps.cursor()
-    con_beatmapsets = sqlite3.connect(beatmapsets_db_location)
-    con_beatmapsets.row_factory = lambda cursor, row: row[0]
-    cur_beatmapsets = con_beatmapsets.cursor()
-    return cur_beatmaps, cur_beatmapsets
-
-
-def db_cursors_scores(playmode, scores_db_location):
     con_scores = sqlite3.connect(scores_db_location, detect_types=sqlite3.PARSE_DECLTYPES)
     con_scores.execute("PRAGMA mmap_size=8589934592")
-    cur_scores = con_scores.cursor()
     con_scores.row_factory = lambda cursor, row: row[0]
     cur_scores_single = con_scores.cursor()
     con_scores.row_factory = lambda cursor, row: (counts_to_accuracy(*row[0:6], playmode=playmode), row[6])
     cur_scores_acc_time = con_scores.cursor()
-    return cur_scores, cur_scores_single, cur_scores_acc_time
+    return cur_beatmaps, cur_scores_single, cur_scores_acc_time
+
+
+def db_cursors_single(beatmapsets_db_location, scores_db_location):
+    con_beatmapsets = sqlite3.connect(beatmapsets_db_location)
+    con_beatmapsets.row_factory = lambda cursor, row: row[0]
+    cur_beatmapsets = con_beatmapsets.cursor()
+    con_scores = sqlite3.connect(scores_db_location)
+    con_scores.execute("PRAGMA mmap_size=8589934592")
+    cur_scores = con_scores.cursor()
+    return cur_beatmapsets, cur_scores
 
 
 def db_location(game_mode, dump_type, dump_date):

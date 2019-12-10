@@ -2,6 +2,7 @@ from datetime import timedelta
 from itertools import chain
 from itertools import combinations
 from itertools import product
+from multiprocessing.dummy import Pool
 from os import remove
 from os.path import isfile
 
@@ -9,7 +10,7 @@ import networkx as nx
 import numpy as np
 from tqdm import tqdm
 
-import database
+from database import *
 from output_functions import readable_mod
 
 
@@ -31,43 +32,26 @@ def allowed_mods(playmode):
 def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=4):
     # Preparation for database queries.
     playmode = play_mode(mode)
-    beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc = database.db_location(mode, dump_type, dump_date)
-    cur_beatmaps, cur_beatmapsets = database.db_cursors_beatmaps(beatmaps_db_loc, beatmapsets_db_loc)
-    cur_scores, cur_scores_single, cur_scores_acc_time = database.db_cursors_scores(playmode, scores_db_loc)
-    scores_table = database.db_tables(mode)[0]
+    beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc = db_location(mode, dump_type, dump_date)
+    cur_beatmaps, cur_scores_single, cur_scores_acc_time = db_cursors_multi(playmode, beatmaps_db_loc, scores_db_loc)
+    cur_beatmapsets, cur_scores = db_cursors_single(beatmapsets_db_loc, scores_db_loc)
+    scores_table = db_tables(mode)[0]
     ranked_mods = allowed_mods(playmode)
 
-    # Initialise graph.
-    graph = nx.DiGraph()
-
-    nomod_maps = database.query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, 0)
-    num_nomod_maps = len(nomod_maps)
-
     # Form edges between all appropriate mod map pairs.
-    for mod in ranked_mods:
-        if mod == 0:
-            map_pairs = combinations(nomod_maps, 2)
-            num_map_pairs = num_nomod_maps * (num_nomod_maps - 1) // 2
-        else:
-            query_maps_approved_args = cur_beatmaps, cur_scores_single, scores_table, statuses, mod_threshold, mod
-            mod_maps = database.query_maps_approved(*query_maps_approved_args)
-            num_mod_maps = len(mod_maps)
-            mod_pairs = combinations(mod_maps, 2)
-            mod_nomod_pairs = product(mod_maps, nomod_maps)
-            map_pairs = chain(mod_pairs, mod_nomod_pairs)
-            num_map_pairs = num_mod_maps * num_nomod_maps + num_mod_maps * (num_mod_maps - 1) // 2
-        for pair in tqdm(map_pairs, total=num_map_pairs, desc=f'Edges ({readable_mod(mod)})'):
-            map_1, map_2 = pair[0], pair[1]
-            map_1_mod, map_2_mod = map_1[1], map_2[1]
-            pair_threshold = mod_threshold if map_1_mod != 0 or map_2_mod != 0 else threshold
-            form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, pair_threshold)
-            form_edge(*form_edge_args)
+    nomod_maps = query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, 0)
+    num_nomod_maps = len(nomod_maps)
+    mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_db_loc, scores_table, playmode, statuses,
+                       threshold, mod_threshold) for m in ranked_mods)
+    with Pool() as pool:
+        mod_graph_list = pool.starmap(mod_graph, mod_graph_args)
+    graph = nx.compose_all(mod_graph_list)
 
     # Form edges between all appropriate intra-beatmapset map pairs.
-    beatmapsets = list(database.query_beatmapsets(cur_beatmapsets, statuses))
+    beatmapsets = list(query_beatmapsets(cur_beatmapsets, statuses))
     for bms in tqdm(beatmapsets, desc='Edges (intra-beatmapset)'):
-        beatmaps = tuple(database.query_beatmapset_beatmaps(cur_beatmaps, bms))
-        maps = database.query_maps(cur_scores, scores_table, beatmaps, ranked_mods)
+        beatmaps = tuple(query_beatmapset_beatmaps(cur_beatmaps, bms))
+        maps = query_maps(cur_scores, scores_table, beatmaps, ranked_mods)
         for pair in combinations(maps, 2):
             map_1_mod, map_2_mod = pair[0][1], pair[1][1]
             if map_1_mod != 0 and map_2_mod != 0 and map_1_mod != map_2_mod:
@@ -78,10 +62,10 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
 
 def form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1, map_2, threshold, report=False):
     """Form a directed edge between two maps if the number of common users exceeds a threshold."""
-    shared_users = tuple(database.query_shared_users(cur_scores_single, scores_table, *map_1, *map_2))
+    shared_users = tuple(query_shared_users(cur_scores_single, scores_table, *map_1, *map_2))
     if len(shared_users) >= threshold:
-        user_accs_1, user_times_1 = database.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_1)
-        user_accs_2, user_times_2 = database.query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_2)
+        user_accs_1, user_times_1 = query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_1)
+        user_accs_2, user_times_2 = query_accs_times(cur_scores_acc_time, scores_table, shared_users, *map_2)
         time_weights = timedelta_weights(user_times_1, user_times_2, weeks=8)
         if (time_weights >= 0.125).sum() >= threshold:  # Check at least threshold score pairs were within 24 weeks.
             t_stat = tstat_paired_weighted(user_accs_1, user_accs_2, time_weights)
@@ -89,6 +73,29 @@ def form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, map_1
                 graph.add_edge(map_1, map_2, weight=t_stat)
             elif report:
                 print(f"Map pair has undefined t-statistic (zero variance). Skipping edge formation {(map_1, map_2)}.")
+
+
+def mod_graph(mod, nomod_maps, num_nomod_maps, beatmaps_db, scores_db, scores_tab, mode, statuses, thresh, mod_thresh):
+    graph = nx.DiGraph()
+    cur_beatmaps, cur_scores_single, cur_scores_acc_time = db_cursors_multi(mode, beatmaps_db, scores_db)
+    if mod == 0:
+        map_pairs = combinations(nomod_maps, 2)
+        num_map_pairs = num_nomod_maps * (num_nomod_maps - 1) // 2
+    else:
+        query_maps_approved_args = cur_beatmaps, cur_scores_single, scores_tab, statuses, mod_thresh, mod
+        mod_maps = query_maps_approved(*query_maps_approved_args)
+        num_mod_maps = len(mod_maps)
+        mod_pairs = combinations(mod_maps, 2)
+        mod_nomod_pairs = product(mod_maps, nomod_maps)
+        map_pairs = chain(mod_pairs, mod_nomod_pairs)
+        num_map_pairs = num_mod_maps * num_nomod_maps + num_mod_maps * (num_mod_maps - 1) // 2
+    for pair in tqdm(map_pairs, total=num_map_pairs, desc=f'Edges ({readable_mod(mod)})'):
+        map_1, map_2 = pair[0], pair[1]
+        map_1_mod, map_2_mod = map_1[1], map_2[1]
+        pair_threshold = mod_thresh if map_1_mod != 0 or map_2_mod != 0 else thresh
+        form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_tab, graph, map_1, map_2, pair_threshold)
+        form_edge(*form_edge_args)
+    return graph
 
 
 def play_mode(mode):
