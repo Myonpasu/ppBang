@@ -149,16 +149,22 @@ if __name__ == '__main__':
     data_dump_date = '2019_12_01'
     # Beatmap difficulties will be calculated for the following beatmapset ranked statuses.
     status_names = {'ranked', 'approved', 'loved'}
-    # Output filename.
-    filename = 'comparison_graph.gpickle'
+    # Output filename and extension.
+    file_name = 'comparison_graph'
+    file_extension = 'gpickle'
 
+    # Construct comparison graph in memory.
     comparison_graph = construct_graph(game_mode, data_dump_type, data_dump_date, status_names)
 
+    # Format file name depending on game mode.
+    if game_mode != 'standard':
+        file_name += f'_{game_mode}'
+    file_name += f'.{file_extension}'
     # Write graph to file.
     try:
-        nx.write_gpickle(comparison_graph, filename)
-        print(f'Graph successfully written as pickle to {filename}')
+        nx.write_gpickle(comparison_graph, file_name)
+        print(f'Graph successfully written as pickle to {file_name}')
     except MemoryError:
-        if isfile(filename):
-            remove(filename)
+        if isfile(file_name):
+            remove(file_name)
         print('MemoryError occurred when writing pickle')

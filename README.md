@@ -6,9 +6,9 @@ More details on how this actually works are contained in `pp!.pdf`.
 
 ## Getting started
 
-Requires a relevant [data dump](https://data.ppy.sh/) folder to be present in the working directory, with files in the SQLite database format.
-The date, type, and game mode of this dump are set in `comparison_graph.py` by `data_dump_date`, `data_dump_type`, and
-`game_mode` respectively.
+Requires a relevant [data dump](https://data.ppy.sh/) folder to be present in the working directory, with files in the
+SQLite database format. The date, type, and game mode of this dump are set in `comparison_graph.py` by `data_dump_date`,
+`data_dump_type`, and `game_mode` respectively.
 
 ### Comparison graph
 
