@@ -1,8 +1,8 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from itertools import chain
 from itertools import combinations
 from itertools import product
-from multiprocessing.dummy import Pool
 from os import remove
 from os.path import isfile
 
@@ -43,8 +43,8 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     num_nomod_maps = len(nomod_maps)
     mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_db_loc, scores_table, playmode, statuses,
                        threshold, mod_threshold) for m in ranked_mods)
-    with Pool() as pool:
-        mod_graph_list = pool.starmap(mod_graph, mod_graph_args)
+    with ThreadPoolExecutor() as pool:
+        mod_graph_list = list(pool.map(mod_graph_wrapper, mod_graph_args))
     graph = nx.compose_all(mod_graph_list)
 
     # Form edges between all appropriate intra-beatmapset map pairs.
@@ -96,6 +96,10 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, beatmaps_db, scores_db, scores_ta
         form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_tab, graph, map_1, map_2, pair_threshold)
         form_edge(*form_edge_args)
     return graph
+
+
+def mod_graph_wrapper(arguments):
+    return mod_graph(*arguments)
 
 
 def play_mode(mode):
@@ -163,7 +167,7 @@ if __name__ == '__main__':
     # Write graph to file.
     try:
         nx.write_gpickle(comparison_graph, file_name)
-        print(f'Graph successfully written as pickle to {file_name}')
+        print(f"Graph successfully written as pickle to '{file_name}'")
     except MemoryError:
         if isfile(file_name):
             remove(file_name)
