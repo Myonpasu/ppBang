@@ -45,6 +45,7 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
                        playmode, statuses, threshold, mod_threshold) for m in ranked_mods)
     with ThreadPoolExecutor() as executor:
         mod_graph_list = list(executor.map(mod_graph_wrapper, mod_graph_args))
+    print('Composing all mod graphs...')
     graph = nx.compose_all(mod_graph_list)
 
     # Form edges between all appropriate intra-beatmapset map pairs.
@@ -159,6 +160,7 @@ if __name__ == '__main__':
 
     # Construct comparison graph in memory.
     comparison_graph = construct_graph(game_mode, data_dump_type, data_dump_date, status_names)
+    print('Comparison graph constructed')
 
     # Format file name depending on game mode.
     if game_mode != 'standard':
