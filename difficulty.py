@@ -5,6 +5,19 @@ import scipy.sparse.linalg as spla
 from tqdm import tqdm
 
 
+def difficulty_dict(nodelist, diffs):
+    diff_dict = {}
+    for node, d in zip(nodelist, diffs):
+        beatmap, mod = node
+        diff_dict.setdefault(beatmap, {}).update({mod: d})
+
+
+def difficulty_output(graph_filename):
+    nodelist, diffs = map_difficulties(graph_filename)
+    diffs = normalize_difficulties(diffs)
+    return difficulty_dict(nodelist, diffs)
+
+
 def linear_system(edge_set, nodelist, neighbour_count, adj_mat):
     num_nodes = len(nodelist)
     max_abs_weight = max(adj_mat.max(), - adj_mat.min())
@@ -38,6 +51,11 @@ def map_difficulties(file_location):
     system_mat, system_vec = linear_system(edge_set, nodelist, neighbour_count, adj_mat)
     diffs = sparse_solve_gmres(system_mat, system_vec)
     return nodelist, diffs
+
+
+def normalize_difficulties(diffs):
+    diffs /= np.amax(diffs)
+    return diffs
 
 
 def process_graph(file_location):
