@@ -8,8 +8,9 @@ from tqdm import tqdm
 def difficulty_dict(nodelist, diffs):
     diff_dict = {}
     for node, d in zip(nodelist, diffs):
-        beatmap, mod = node
-        diff_dict.setdefault(beatmap, {}).update({mod: d})
+        beatmap, mods = node
+        diff_dict.setdefault(beatmap, {}).update({mods: d})
+    return diff_dict
 
 
 def difficulty_output(graph_filename):
