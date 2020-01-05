@@ -112,6 +112,9 @@ def query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, status_na
         f"SELECT beatmap_id FROM {scores_table} "
         "GROUP BY beatmap_id "
         "HAVING SUM(CASE enabled_mods WHEN ? THEN 1 ELSE 0 END) >= ?", (enabled_mod, threshold)))
+    # Correctly format query when searching for only a single beatmap.
+    if len(filtered_beatmaps) == 1:
+        filtered_beatmaps = f'({filtered_beatmaps[0]})'
     statuses = tuple(ranked_status(status_names))
     beatmaps = cur_beatmaps.execute(
         "SELECT beatmap_id FROM osu_beatmaps "
