@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from datetime import timedelta
 from itertools import chain
 from itertools import combinations
@@ -43,7 +43,7 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     num_nomod_maps = len(nomod_maps)
     mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_db_loc, scores_table,
                        playmode, statuses, threshold, mod_threshold) for m in ranked_mods)
-    with ThreadPoolExecutor() as executor:
+    with ProcessPoolExecutor() as executor:
         mod_graph_list = list(executor.map(mod_graph_wrapper, mod_graph_args))
     print('Composing all mod graphs...')
     graph = nx.compose_all(mod_graph_list)
