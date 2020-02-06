@@ -44,7 +44,8 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_db_loc, scores_table,
                        playmode, statuses, threshold, mod_threshold) for m in ranked_mods)
     with ProcessPoolExecutor() as executor:
-        mod_graph_list = list(executor.map(mod_graph_wrapper, mod_graph_args))
+        mod_graph_files = list(executor.map(mod_graph_wrapper, mod_graph_args))
+    mod_graph_list = [nx.read_gpickle(f) for f in mod_graph_files]
     print('Composing all mod graphs...')
     graph = nx.compose_all(mod_graph_list)
 
@@ -90,13 +91,16 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, beatmaps_db, scores_db, scores_ta
         mod_nomod_pairs = product(mod_maps, nomod_maps)
         map_pairs = chain(mod_pairs, mod_nomod_pairs)
         num_map_pairs = num_mod_maps * num_nomod_maps + num_mod_maps * (num_mod_maps - 1) // 2
-    for pair in tqdm(map_pairs, desc=f'Edges ({readable_mod(mod)})', total=num_map_pairs):
+    mod_name = readable_mod(mod)
+    for pair in tqdm(map_pairs, desc=f'Edges ({mod_name})', total=num_map_pairs):
         map_1, map_2 = pair[0], pair[1]
         map_1_mod, map_2_mod = map_1[1], map_2[1]
         pair_threshold = mod_thresh if map_1_mod != 0 or map_2_mod != 0 else thresh
         form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_tab, graph, map_1, map_2, pair_threshold)
         form_edge(*form_edge_args)
-    return graph
+    filename = f'temp_{mod_name}.gpickle'
+    nx.write_gpickle(graph, filename)
+    return filename
 
 
 def mod_graph_wrapper(arguments):
