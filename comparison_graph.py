@@ -98,7 +98,7 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, beatmaps_db, scores_db, scores_ta
         pair_threshold = mod_thresh if map_1_mod != 0 or map_2_mod != 0 else thresh
         form_edge_args = (cur_scores_acc_time, cur_scores_single, scores_tab, graph, map_1, map_2, pair_threshold)
         form_edge(*form_edge_args)
-    filename = f'temp_{mod_name}.gpickle'
+    filename = f'temp_{mode}_{mod_name}.gpickle'
     nx.write_gpickle(graph, filename)
     return filename
 
