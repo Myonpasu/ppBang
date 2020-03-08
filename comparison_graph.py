@@ -45,11 +45,9 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
                        playmode, statuses, threshold, mod_threshold) for m in ranked_mods)
     with ProcessPoolExecutor() as executor:
         mod_graph_files = list(executor.map(mod_graph_wrapper, mod_graph_args))
-    mod_graph_list = [nx.read_gpickle(f) for f in mod_graph_files]
-    print('Composing all mod graphs...')
-    graph = nx.compose_all(mod_graph_list)
 
     # Form edges between all appropriate intra-beatmapset map pairs.
+    intrabms_graph = nx.DiGraph()
     beatmapsets = list(query_beatmapsets(cur_beatmapsets, statuses))
     for bms in tqdm(beatmapsets, desc='Edges (intra-beatmapset)'):
         beatmaps = tuple(query_beatmapset_beatmaps(cur_beatmaps, bms))
@@ -57,8 +55,15 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
         for pair in combinations(maps, 2):
             map_1_mod, map_2_mod = pair[0][1], pair[1][1]
             if map_1_mod != 0 and map_2_mod != 0 and map_1_mod != map_2_mod:
-                form_edge(cur_scores_acc_time, cur_scores_single, scores_table, graph, *pair, mod_threshold)
+                form_edge(cur_scores_acc_time, cur_scores_single, scores_table, intrabms_graph, *pair, mod_threshold)
+    intrabms_filename = f'temp_{playmode}_INTRABMS.gpickle'
+    nx.write_gpickle(intrabms_graph, intrabms_filename)
 
+    # Read component graphs from files and return composed graph.
+    mod_graph_list = [nx.read_gpickle(f) for f in mod_graph_files]
+    mod_graph_list.append(intrabms_graph)
+    print('Composing all mod graphs...')
+    graph = nx.compose_all(mod_graph_list)
     return graph
 
 
