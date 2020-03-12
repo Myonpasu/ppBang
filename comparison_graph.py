@@ -141,6 +141,8 @@ def tstat_paired_weighted(a, b, weights):
     sum_weights = sum(weights)
     sum_weight_squares = sum(w * w for w in weights)
     mean = np.dot(data, weights) / sum_weights
+    if np.all(np.isclose(data, mean)):
+        return np.nan
     sumsquares = np.dot((data - mean) ** 2, weights)
     if sumsquares == 0:
         return np.nan
