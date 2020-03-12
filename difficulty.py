@@ -6,10 +6,7 @@ from tqdm import tqdm
 
 
 def difficulty_dict(nodelist, diffs):
-    diff_dict = {}
-    for node, d in zip(nodelist, diffs):
-        beatmap, mods = node
-        diff_dict.setdefault(beatmap, {}).update({mods: d})
+    diff_dict = {node: diff for node, diff in zip(nodelist, diffs)}
     return diff_dict
 
 
