@@ -28,7 +28,7 @@ def linear_system(graph):
     neighbour_count = vertex_degrees(graph)
     vertex_count = graph.num_vertices()
     max_abs_weight = max(graph.ep.weight.a.max(), - graph.ep.weight.a.min())
-    system_vec = adj_mat.sum(axis=0).A1 - adj_mat.sum(axis=1).A1  # Sum (A - A^T) over axis=1
+    system_vec = adj_mat.sum(axis=1).A1 - adj_mat.sum(axis=0).A1  # Sum (A - A^T) matrix over its columns.
     system_vec += max_abs_weight * (vertex_count - 1)
     print('Initial linear system vector calculated')
     min_neighbour_idx = np.argmin(neighbour_count)
