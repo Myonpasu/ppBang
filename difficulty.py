@@ -25,31 +25,31 @@ def difficulty_output(graph_filename):
 
 def linear_system(graph):
     adj_mat = adjacency_matrix(graph)
-    neighbour_count = vertex_degrees(graph)
+    neighbour_counts = vertex_degrees(graph)
     vertex_count = graph.num_vertices()
     max_abs_weight = max(graph.ep.weight.a.max(), - graph.ep.weight.a.min())
     system_vec = adj_mat.sum(axis=1).A1 - adj_mat.sum(axis=0).A1  # Sum (A - A^T) matrix over its columns.
     system_vec += max_abs_weight * (vertex_count - 1)
     print('Initial linear system vector calculated')
-    min_neighbour_idx = np.argmin(neighbour_count)
-    min_neighbour_row = linear_system_row(graph, neighbour_count, vertex_count, min_neighbour_idx)
+    min_neighbour_idx = np.argmin(neighbour_counts)
+    min_neighbour_row = linear_system_row(graph, neighbour_counts, vertex_count, min_neighbour_idx)
     system_mat = sp.lil_matrix((vertex_count, vertex_count), dtype=int)
     system_mat[min_neighbour_idx] = min_neighbour_row
     for i in tqdm(range(vertex_count), total=vertex_count, desc='Calculating reduced linear system'):
         if i != min_neighbour_idx:
             system_vec[i] = system_vec[i] - system_vec[min_neighbour_idx]
-            row = linear_system_row(graph, neighbour_count, vertex_count, i) - min_neighbour_row
+            row = linear_system_row(graph, neighbour_counts, vertex_count, i) - min_neighbour_row
             system_mat[i] = row
     system_mat = system_mat.tocsr()
     print('Linear system prepared to solve')
     return system_mat, system_vec
 
 
-def linear_system_row(graph, neighbour_count, vertex_count, row_index):
+def linear_system_row(graph, neighbour_counts, vertex_count, row_index):
     row = np.ones(vertex_count, dtype=int)
-    zero_indices = [j for j in range(vertex_count) if graph.edge(j, row_index) or graph.edge(row_index, j)]
+    zero_indices = [graph.vertex_index[v] for v in graph.vertex(row_index).all_neighbors()]  # Not necessarily sorted.
     row[zero_indices] = 0
-    row[row_index] = neighbour_count[row_index] + 1
+    row[row_index] = neighbour_counts[row_index] + 1
     return row
 
 
