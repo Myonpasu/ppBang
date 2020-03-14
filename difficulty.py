@@ -24,12 +24,9 @@ def difficulty_output(graph_filename):
 
 
 def linear_system(graph):
-    adj_mat = adjacency_matrix(graph)
     neighbour_counts = vertex_degrees(graph)
     vertex_count = graph.num_vertices()
-    max_abs_weight = max(graph.ep.weight.a.max(), - graph.ep.weight.a.min())
-    system_vec = adj_mat.sum(axis=1).A1 - adj_mat.sum(axis=0).A1  # Sum (A - A^T) matrix over its columns.
-    system_vec += max_abs_weight * (vertex_count - 1)
+    system_vec = system_vector(graph, vertex_count)
     print('Initial linear system vector calculated')
     min_neighbour_idx = np.argmin(neighbour_counts)
     min_neighbour_row = linear_system_row(graph, neighbour_counts, vertex_count, min_neighbour_idx)
@@ -55,8 +52,8 @@ def linear_system_row(graph, neighbour_counts, vertex_count, row_index):
 
 def map_difficulties(file_location):
     graph = read_graph(file_location)
-    system_mat, system_vec = linear_system(graph)
     names = vertex_names(graph)
+    system_mat, system_vec = linear_system(graph)
     diffs = sparse_solve_gmres(system_mat, system_vec)
     return names, diffs
 
@@ -78,6 +75,15 @@ def sparse_solve_gmres(a, b, precondition=False):
     x, info = spla.gmres(a, b, M=precon)
     print(f'GMRES solver finished with exit code {info}')
     return x
+
+
+def system_vector(graph, vertex_count):
+    adj_mat = adjacency_matrix(graph)
+    max_abs_weight = max(graph.ep.weight.a.max(), - graph.ep.weight.a.min())
+    system_vec = adj_mat.sum(axis=1).A1 - adj_mat.sum(axis=0).A1  # Sum (A - A^T) matrix over its columns.
+    system_vec += max_abs_weight * (vertex_count - 1)
+    print('Initial linear system vector calculated')
+    return system_vec
 
 
 def vertex_degrees(graph):
