@@ -27,7 +27,6 @@ def linear_system(graph):
     neighbour_counts = vertex_degrees(graph)
     vertex_count = graph.num_vertices()
     system_vec = system_vector(graph, vertex_count)
-    print('Initial linear system vector calculated')
     min_neighbour_idx = np.argmin(neighbour_counts)
     min_neighbour_row = linear_system_row(graph, neighbour_counts, vertex_count, min_neighbour_idx)
     system_mat = sp.lil_matrix((vertex_count, vertex_count), dtype=int)
@@ -93,7 +92,7 @@ def vertex_degrees(graph):
 
 
 def vertex_names(graph):
-    names = [tuple(g.vp.name[v]) for v in graph.vertices()]
+    names = [tuple(graph.vp.name[v]) for v in graph.vertices()]
     print('Vertex names retrieved from graph')
     return names
 
