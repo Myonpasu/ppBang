@@ -93,7 +93,7 @@ def vertex_degrees(graph):
 
 
 def vertex_names(graph):
-    names = np.asarray(list(graph.vp.name))
+    names = [tuple(g.vp.name[v]) for v in graph.vertices()]
     print('Vertex names retrieved from graph')
     return names
 
