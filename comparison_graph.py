@@ -32,7 +32,7 @@ def allowed_mods(playmode):
 def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=4):
     # Preparation for database queries.
     playmode = play_mode(mode)
-    beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc = db_location(mode, dump_type, dump_date)
+    beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc, attribs_db_loc = db_location(mode, dump_type, dump_date)
     cur_beatmaps, cur_scores_single, cur_scores_acc_time = db_cursors_multi(playmode, beatmaps_db_loc, scores_db_loc)
     cur_beatmapsets, cur_scores = db_cursors_single(beatmapsets_db_loc, scores_db_loc)
     scores_table = db_tables(mode)[0]

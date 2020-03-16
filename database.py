@@ -66,7 +66,8 @@ def db_location(game_mode, dump_type, dump_date):
     beatmaps_db_location = f"./{dump_date}_performance{mode_folder_str}{dump_type}/osu_beatmaps.db"
     beatmapsets_db_location = f"./{dump_date}_performance{mode_folder_str}{dump_type}/osu_beatmapsets.db"
     scores_db_location = f"./{dump_date}_performance{mode_folder_str}{dump_type}/osu_scores{mode_str}high.db"
-    return beatmaps_db_location, beatmapsets_db_location, scores_db_location
+    attribs_db_location = f"./{dump_date}_performance{mode_folder_str}{dump_type}/osu_beatmap_difficulty_attribs.db"
+    return beatmaps_db_location, beatmapsets_db_location, scores_db_location, attribs_db_location
 
 
 def db_tables(game_mode):
