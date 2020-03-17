@@ -53,7 +53,7 @@ def map_difficulties(file_location):
     graph = read_graph(file_location)
     names = vertex_names(graph)
     system_mat, system_vec = linear_system(graph)
-    diffs = sparse_solve_gmres(system_mat, system_vec)
+    diffs = sparse_solve_bicgstab(system_mat, system_vec)
     return names, diffs
 
 
@@ -68,11 +68,12 @@ def read_graph(file_location):
     return graph
 
 
-def sparse_solve_gmres(a, b, precondition=False):
-    """Solve linear equations a.x = b for x using generalized minimal residual method."""
+def sparse_solve_bicgstab(a, b, precondition=False):
+    """Solve linear equations a.x = b for x using BiCGSTAB method."""
     precon = spla.LinearOperator(a.shape, spla.spilu(a).solve) if precondition else None
-    x, info = spla.gmres(a, b, M=precon)
-    print(f'GMRES solver finished with exit code {info}')
+    print('Solving linear system...')
+    x, info = spla.bicgstab(a, b, M=precon)
+    print(f'BiCGSTAB solver finished with exit code {info}')
     return x
 
 
