@@ -117,6 +117,7 @@ def graph_union_all(graphs):
     u = gt.Graph(next(graphs))
     for g in tqdm(graphs, desc='Graph union', total=num_graphs - 1):
         u = graph_union_pair(u, g)
+    print('Union over all graphs completed')
     return u
 
 
