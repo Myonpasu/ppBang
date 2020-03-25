@@ -45,7 +45,7 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_db_loc, scores_table,
                        playmode, statuses, threshold, mod_threshold) for m in ranked_mods)
     with ProcessPoolExecutor() as executor:
-        mod_graph_files = list(executor.map(mod_graph_wrapper, mod_graph_args))
+        mod_graphs = list(executor.map(mod_graph_wrapper, mod_graph_args))
 
     # Form edges between all appropriate intra-beatmapset map pairs.
     beatmapsets = list(query_beatmapsets(cur_beatmapsets, statuses))
@@ -56,7 +56,6 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     intrabms_graph.save(intrabms_filename, fmt='gt')
 
     # Combine all graphs.
-    mod_graphs = [gt.load_graph(f, fmt='gt') for f in mod_graph_files]
     mod_graphs.append(intrabms_graph)
     graph = graph_union_all(mod_graphs)
     return graph
@@ -112,12 +111,12 @@ def graph_spawn():
 
 
 def graph_union_all(graphs):
+    print('Performing union over all graphs...')
     num_graphs = len(graphs)
     graphs = iter(graphs)
-    u = gt.Graph(next(graphs))
+    u = next(graphs)  # Better to deep copy here, but it is too resource heavy.
     for g in tqdm(graphs, desc='Graph union', total=num_graphs - 1):
         u = graph_union_pair(u, g)
-    print('Union over all graphs completed')
     return u
 
 
@@ -161,7 +160,7 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, beatmaps_db, scores_db, scores_ta
     graph_add_names(graph, maps)
     filename = f'temp_{mode}_{mod_name}.gt'
     graph.save(filename, fmt='gt')
-    return filename
+    return graph
 
 
 def mod_graph_wrapper(arguments):
