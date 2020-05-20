@@ -36,7 +36,7 @@ def linear_system(graph):
             system_vec[i] = system_vec[i] - system_vec[min_neighbour_idx]
             row = linear_system_row(graph, neighbour_counts, vertex_count, i) - min_neighbour_row
             system_mat[i] = row
-    system_mat = system_mat.tocsr()
+    system_mat = system_mat.tocsc()
     print('Linear system prepared to solve')
     return system_mat, system_vec
 
