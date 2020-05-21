@@ -182,9 +182,11 @@ def play_mode(mode):
     return playmode
 
 
-def timedelta_weights(user_times_1, user_times_2, weeks=8):
-    weights = ((np.asarray(user_times_1) - np.asarray(user_times_2)) / timedelta(weeks=weeks)).astype('float')
-    return np.exp2(- np.fabs(weights))
+def timedelta_weights(user_times_1, user_times_2, weeks=8, cutoff_weeks=24):
+    time_delta = ((np.asarray(user_times_1) - np.asarray(user_times_2)) / timedelta(weeks=weeks)).astype('float')
+    weights = np.exp2(- np.fabs(time_delta))
+    weights[weights <= np.exp2(- cutoff_weeks / weeks)] = 0  # Set weights for large enough time intervals to zero.
+    return weights
 
 
 def tstat_paired_weighted(a, b, weights):
@@ -196,9 +198,9 @@ def tstat_paired_weighted(a, b, weights):
     sum_weights = sum(weights)
     sum_weight_squares = sum(w * w for w in weights)
     mean = np.dot(data, weights) / sum_weights
-    sumsquares = np.dot((data - mean) ** 2, weights)
-    if np.isclose(sumsquares, 0):  # Need a better solution for this check.
+    if np.all(np.isclose(np.ma.masked_where(weights == 0, data), mean)):
         return np.nan
+    sumsquares = np.dot((data - mean) ** 2, weights)
     correction = sum_weights - sum_weight_squares / sum_weights
     if correction == 0:
         return np.nan
