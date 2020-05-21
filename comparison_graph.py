@@ -196,11 +196,9 @@ def tstat_paired_weighted(a, b, weights):
     sum_weights = sum(weights)
     sum_weight_squares = sum(w * w for w in weights)
     mean = np.dot(data, weights) / sum_weights
-    if np.all(np.isclose(data, mean)):
+    if np.all(np.isclose(data * weights, mean * weights)):
         return np.nan
     sumsquares = np.dot((data - mean) ** 2, weights)
-    if sumsquares == 0:
-        return np.nan
     correction = sum_weights - sum_weight_squares / sum_weights
     if correction == 0:
         return np.nan
