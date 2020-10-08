@@ -14,16 +14,15 @@ def difficulty_output(graph_filename):
     return difficulty_dict(nodelist, diffs)
 
 
-def diffs_iterative(graph, epsilon=1e-9):
+def diffs_iterative(graph, epsilon=1e-4):
     vertex_count = graph.num_vertices()
-    epsilon *= vertex_count
     max_weight = max(graph.ep.weight_accuracy.a.max(), - graph.ep.weight_accuracy.a.min())
     k = vertex_degrees(graph)
     weight_in = gt.incident_edges_op(graph, 'in', 'sum', graph.ep.weight_accuracy)
     weight_out = gt.incident_edges_op(graph, 'out', 'sum', graph.ep.weight_accuracy)
     weight_net = weight_in.a - weight_out.a
     weight_term = weight_net / (max_weight * (vertex_count - 1))
-    diffs = graph.new_vp('double', val=1 / vertex_count)
+    diffs = graph.new_vp('double', val=(1 / vertex_count))
     neighbor_diff_sum = graph.new_vp('double')
     delta = 1 + epsilon
     iteration = 1
