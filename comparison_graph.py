@@ -33,24 +33,25 @@ def allowed_mods(playmode):
 def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=5):
     # Preparation for database queries.
     playmode = play_mode(mode)
-    beatmaps_db_loc, beatmapsets_db_loc, scores_db_loc, attribs_db_loc = db_location(mode, dump_type, dump_date)
-    cur_beatmaps, cur_scores_single, cur_scores_acc_time = db_cursors_multi(playmode, beatmaps_db_loc, scores_db_loc)
-    cur_beatmapsets, cur_scores = db_cursors_single(beatmapsets_db_loc, scores_db_loc)
+    beatmaps_db_loc, beatmapsets_loc, scores_loc, attribs_loc = db_location(mode, dump_type, dump_date)
+    cur_beatmaps, cur_scores_single, cur_scores_data = db_cursors_multi(playmode, beatmaps_db_loc, scores_loc)
+    cur_beatmapsets, cur_attribs, cur_scores = db_cursors_single(beatmapsets_loc, attribs_loc, scores_loc)
     scores_table = db_tables(mode)[0]
     ranked_mods = allowed_mods(playmode)
+    fc_dict = dict(full_combos(cur_attribs))
 
     # Form edges between all appropriate mod map pairs.
     nomod_maps = query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, 0)
     num_nomod_maps = len(nomod_maps)
-    mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_db_loc, scores_table,
-                       playmode, statuses, threshold, mod_threshold) for m in ranked_mods)
+    mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_loc, scores_table,
+                       playmode, statuses, fc_dict, threshold, mod_threshold) for m in ranked_mods)
     with ProcessPoolExecutor() as executor:
         mod_graphs = list(executor.map(mod_graph_wrapper, mod_graph_args))
 
     # Form edges between all appropriate intra-beatmapset map pairs.
     beatmapsets = list(query_beatmapsets(cur_beatmapsets, statuses))
-    intrabms_graph_args = (beatmapsets, ranked_mods, mod_threshold, cur_beatmaps, cur_scores,
-                           cur_scores_acc_time, cur_scores_single, scores_table)
+    intrabms_graph_args = (beatmapsets, ranked_mods, fc_dict, mod_threshold, cur_beatmaps, cur_scores,
+                           cur_scores_data, cur_scores_single, scores_table)
     intrabms_graph = graph_intrabms(*intrabms_graph_args)
     intrabms_filename = f'temp_{playmode}_INTRABMS.gt'
     intrabms_graph.save(intrabms_filename, fmt='gt')
@@ -61,20 +62,34 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     return graph
 
 
-def form_edge(cur_scores_acc_time, cur_scores_single, scores_tab, graph, map_1, map_2, i_1, i_2, thresh, report=False):
+def form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_2, i1, i2, fcs, thresh, report=False):
     """Form a directed edge between two maps if the number of common users exceeds a threshold."""
     shared_users = tuple(query_shared_users(cur_scores_single, scores_tab, *map_1, *map_2))
     if len(shared_users) >= thresh:
-        user_accs_1, user_times_1 = query_accs_times(cur_scores_acc_time, scores_tab, shared_users, *map_1)
-        user_accs_2, user_times_2 = query_accs_times(cur_scores_acc_time, scores_tab, shared_users, *map_2)
-        time_weights = timedelta_weights(user_times_1, user_times_2, weeks=8)
-        if (time_weights >= 0.125).sum() >= thresh:  # Check at least threshold score pairs were within 24 weeks.
-            t_stat = tstat_paired_weighted(user_accs_1, user_accs_2, time_weights)
-            if not np.isnan(t_stat):
-                e = graph.add_edge(i_1, i_2)
-                graph.ep.weight[e] = t_stat
+        accs_1, hit_props_1, hit_accs_1, coms_1, times_1 = query_data(cur_scores_data, scores_tab, shared_users, *map_1)
+        accs_2, hit_props_2, hit_accs_2, coms_2, times_2 = query_data(cur_scores_data, scores_tab, shared_users, *map_2)
+        time_weights = timedelta_weights(times_1, times_2)
+        if (time_weights > 0).sum() >= thresh:  # Check at least threshold score pairs were set within cutoff time.
+            combos_1 = np.asarray(coms_1) / fcs[map_1[0]]
+            combos_2 = np.asarray(coms_2) / fcs[map_2[0]]
+            t_acc = tstat_paired_weighted(accs_1, accs_2, time_weights)
+            t_hit_props = tstat_paired_weighted(hit_props_1, hit_props_2, time_weights)
+            t_hit_accs = tstat_paired_weighted(hit_accs_1, hit_accs_2, time_weights)
+            t_combo = tstat_paired_weighted(combos_1, combos_2, time_weights)
+            weights = {
+                'weight_accuracy': t_acc,
+                'weight_hit_proportion': t_hit_props,
+                'weight_hit_accuracy': t_hit_accs,
+                'weight_combo': t_combo
+            }
+            if not np.any(np.isnan(list(weights.values()))):
+                v1 = graph.vertex(i1, add_missing=True)
+                v2 = graph.vertex(i2, add_missing=True)
+                for prop, w in weights.items():
+                    e = graph.edge(v1, v2, add_missing=True)
+                    graph.ep[prop][e] = w
             elif report:
-                print(f"Map pair has undefined t-statistic (zero variance). Skipping edge formation {(map_1, map_2)}.")
+                print(f"Map pair has an undefined t-statistic. Skipping edge formation {(map_1, map_2)}.")
 
 
 def graph_add_names(graph, vertex_names):
@@ -85,9 +100,9 @@ def graph_add_names(graph, vertex_names):
     graph.remove_vertex(isolated_vertices, fast=True)
 
 
-def graph_intrabms(beatmapsets, ranked_mods, mod_thres, cur_beatmaps, cur_scores, cur_acc_time, cur_single, scores_tab):
+def graph_intrabms(bmsets, ranked_mods, fcs, mod_thres, cur_beatmaps, cur_scores, cur_data, cur_single, scores_tab):
     intrabms_graph = graph_spawn()
-    for bms in tqdm(beatmapsets, desc='Edges (intra-beatmapset)'):
+    for bms in tqdm(bmsets, desc='Edges (intra-beatmapset)'):
         bms_graph = graph_spawn()
         beatmaps = tuple(query_beatmapset_beatmaps(cur_beatmaps, bms))
         maps = list(query_maps(cur_scores, scores_tab, beatmaps, ranked_mods))
@@ -95,8 +110,8 @@ def graph_intrabms(beatmapsets, ranked_mods, mod_thres, cur_beatmaps, cur_scores
             map_1, map_2 = maps[idx_1], maps[idx_2]
             map_1_mod, map_2_mod = map_1[1], map_2[1]
             if map_1_mod != 0 and map_2_mod != 0 and map_1_mod != map_2_mod:
-                form_edge(cur_acc_time, cur_single, scores_tab, bms_graph,
-                          map_1, map_2, idx_1, idx_2, mod_thres)
+                form_edge(cur_data, cur_single, scores_tab, bms_graph,
+                          map_1, map_2, idx_1, idx_2, fcs, mod_thres)
         graph_add_names(bms_graph, maps)
         intrabms_graph = graph_union_pair(intrabms_graph, bms_graph)
     return intrabms_graph
@@ -106,7 +121,10 @@ def graph_spawn():
     """Return an empty directed graph with internal name and weight properties."""
     graph = gt.Graph(directed=True)
     graph.vp.name = graph.new_vp('vector<int>')
-    graph.ep.weight = graph.new_ep('double')
+    graph.ep.weight_accuracy = graph.new_ep('double', val=0)
+    graph.ep.weight_hit_proportion = graph.new_ep('double', val=0)
+    graph.ep.weight_hit_accuracy = graph.new_ep('double', val=0)
+    graph.ep.weight_combo = graph.new_ep('double', val=0)
     return graph
 
 
@@ -132,9 +150,9 @@ def graph_union_pair(g, h):
     return u
 
 
-def mod_graph(mod, nomod_maps, num_nomod_maps, beatmaps_db, scores_db, scores_tab, mode, statuses, thresh, mod_thresh):
+def mod_graph(mod, nomod_maps, num_nomod_maps, bmap_db, scores_db, scores_tab, mode, statuses, fcs, thresh, mod_thresh):
     graph = graph_spawn()
-    cur_beatmaps, cur_scores_single, cur_scores_acc_time = db_cursors_multi(mode, beatmaps_db, scores_db)
+    cur_beatmaps, cur_scores_single, cur_scores_data = db_cursors_multi(mode, bmap_db, scores_db)
     nomod_indices = range(num_nomod_maps)
     if mod == 0:
         maps = nomod_maps
@@ -155,8 +173,8 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, beatmaps_db, scores_db, scores_ta
     for idx_1, idx_2 in tqdm(index_pairs, desc=f'Edges ({mod_name})', total=num_map_pairs):  # Form appropriate edges.
         map_1, map_2 = maps[idx_1], maps[idx_2]
         map_1_mod, map_2_mod = map_1[1], map_2[1]
-        pair_threshold = mod_thresh if map_1_mod != 0 or map_2_mod != 0 else thresh
-        form_edge(cur_scores_acc_time, cur_scores_single, scores_tab, graph, map_1, map_2, idx_1, idx_2, pair_threshold)
+        pair_thresh = mod_thresh if map_1_mod != 0 or map_2_mod != 0 else thresh
+        form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_2, idx_1, idx_2, fcs, pair_thresh)
     graph_add_names(graph, maps)
     filename = f'temp_{mode}_{mod_name}.gt'
     graph.save(filename, fmt='gt')
@@ -182,10 +200,10 @@ def play_mode(mode):
     return playmode
 
 
-def timedelta_weights(user_times_1, user_times_2, weeks=8, cutoff_weeks=24):
-    time_delta = ((np.asarray(user_times_1) - np.asarray(user_times_2)) / timedelta(weeks=weeks)).astype('float')
-    weights = np.exp2(- np.fabs(time_delta))
-    weights[weights <= np.exp2(- cutoff_weeks / weeks)] = 0  # Set weights for large enough time intervals to zero.
+def timedelta_weights(user_times_1, user_times_2, cutoff_weeks=36):
+    time_delta = ((np.asarray(user_times_1) - np.asarray(user_times_2)) / timedelta(weeks=cutoff_weeks)).astype('float')
+    time_delta = np.fabs(time_delta)
+    weights = np.exp(2 * time_delta / (time_delta - 1), out=np.zeros(len(time_delta)), where=time_delta < 1)
     return weights
 
 
@@ -198,16 +216,18 @@ def tstat_paired_weighted(a, b, weights):
     sum_weights = sum(weights)
     sum_weight_squares = sum(w * w for w in weights)
     mean = np.dot(data, weights) / sum_weights
-    if np.all(np.isclose(np.ma.masked_where(weights == 0, data), mean)):
+    if np.all(np.isclose(data[weights != 0], mean)):
         return np.nan
     sumsquares = np.dot((data - mean) ** 2, weights)
-    correction = sum_weights - sum_weight_squares / sum_weights
-    if correction == 0:
-        return np.nan
+    correction = sum_weights - sum_weight_squares / sum_weights  # Never zero provided at least two nonzero weights.
     var = sumsquares / correction
+    # Remove cases where the corrected sample standard deviation is at most 1% (an arbitrary choice).
+    # Perhaps we should find a more natural way to rule out these divergent cases.
+    if np.isclose(var, 0, atol=1e-4):
+        return np.nan
     std = np.sqrt(var)
-    std_mean = std * np.sqrt(sum_weight_squares) / sum_weights
-    tstat = mean / std_mean
+    std_err_mean = std * np.sqrt(sum_weight_squares) / sum_weights
+    tstat = mean / std_err_mean
     return tstat
 
 
