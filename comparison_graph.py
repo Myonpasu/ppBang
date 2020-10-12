@@ -30,7 +30,7 @@ def allowed_mods(playmode):
     return allowed
 
 
-def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=5):
+def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=6):
     # Preparation for database queries.
     playmode = play_mode(mode)
     beatmaps_db_loc, beatmapsets_loc, scores_loc, attribs_loc = db_location(mode, dump_type, dump_date)
