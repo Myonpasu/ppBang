@@ -58,6 +58,7 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
 
     # Combine all graphs.
     mod_graphs.append(intrabms_graph)
+    mod_graphs[:] = [g for g in mod_graphs if g.num_vertices() != 0]
     graph = graph_union_all(mod_graphs)
     return graph
 
