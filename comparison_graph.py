@@ -12,22 +12,9 @@ from graph_tool.generation import graph_union
 from tqdm import tqdm
 
 from database import *
-from output_functions import readable_mod
-
-
-def allowed_mods(playmode):
-    """Return the set of possible enabled mods for a game mode, including no-mod."""
-    # None = 0, NF = 1, EZ = 2, HD = 8, HR = 16, DT = 64, HT = 256, NC = 512, FL = 1024, FI = 1048576.
-    # NC is only set along with DT, giving 576.
-    mods = [2, 8, 16, 64, 256, 1024, 1048576] if playmode == 3 else [2, 8, 16, 64, 256, 1024]
-    mod_powerset = chain.from_iterable(combinations(mods, r) for r in range(len(mods) + 1))
-    if playmode == 3:
-        combos = (p for p in mod_powerset if
-                  not ((2 in p and 16 in p) or (64 in p and 256 in p) or (8 in p and 1048576 in p)))
-    else:
-        combos = (p for p in mod_powerset if not ((2 in p and 16 in p) or (64 in p and 256 in p)))
-    allowed = tuple(sum(c) for c in combos)
-    return allowed
+from mods import Mod
+from mods import allowed_mods
+from mods import readable_mod
 
 
 def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=6):
@@ -37,11 +24,11 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     cur_beatmaps, cur_scores_single, cur_scores_data = db_cursors_multi(playmode, beatmaps_db_loc, scores_loc)
     cur_beatmapsets, cur_attribs, cur_scores = db_cursors_single(beatmapsets_loc, attribs_loc, scores_loc)
     scores_table = db_tables(mode)[0]
-    ranked_mods = allowed_mods(playmode)
+    ranked_mods = allowed_mods()
     fc_dict = dict(full_combos(cur_attribs))
 
     # Form edges between all appropriate mod map pairs.
-    nomod_maps = query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, 0)
+    nomod_maps = query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, Mod(0))
     num_nomod_maps = len(nomod_maps)
     mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_loc, scores_table,
                        playmode, statuses, fc_dict, threshold, mod_threshold) for m in ranked_mods)
@@ -155,7 +142,7 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, bmap_db, scores_db, scores_tab, m
     graph = graph_spawn()
     cur_beatmaps, cur_scores_single, cur_scores_data = db_cursors_multi(mode, bmap_db, scores_db)
     nomod_indices = range(num_nomod_maps)
-    if mod == 0:
+    if not mod:  # No mods are enabled.
         maps = nomod_maps
         index_pairs = combinations(nomod_indices, 2)
         num_map_pairs = num_nomod_maps * (num_nomod_maps - 1) // 2
