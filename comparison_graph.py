@@ -193,8 +193,9 @@ def timedelta_weights(user_times_1, user_times_2, cutoff_weeks=36):
     time_delta = ((np.asarray(user_times_1) - np.asarray(user_times_2)) / timedelta(weeks=cutoff_weeks)).astype('float')
     time_delta = np.fabs(time_delta)
     weights = np.zeros(len(time_delta))
-    cutoff_mask = time_delta < 1
-    weights[cutoff_mask] = np.exp(2 / (1 - 1 / time_delta[cutoff_mask]))
+    time_until_cutoff = 1 - time_delta
+    cutoff_mask = time_until_cutoff > 0
+    weights[cutoff_mask] = np.exp(- 2 * time_delta[cutoff_mask] / time_until_cutoff[cutoff_mask])
     return weights
 
 
