@@ -30,6 +30,21 @@ def counts_to_accuracy(count50, count100, count300, countmiss, countgeki, countk
     return acc
 
 
+def hit_proportion(count50, count100, count300, countmiss):
+    # Proportion of notes not missed for osu!standard.
+    total_notes = count50 + count100 + count300 + countmiss
+    acc = 1 - countmiss / total_notes
+    return acc
+
+
+def hit_accuracy(count50, count100, count300):
+    # Accuracy on the notes that were hit for osu!standard.
+    total_hits = count50 + count100 + count300
+    acc = (count50 / 6 + count100 / 3 + count300)
+    acc /= total_hits
+    return acc
+
+
 def db_cursors_multi(playmode, beatmaps_db_location, scores_db_location):
     con_beatmaps = sqlite3.connect(beatmaps_db_location)
     con_beatmaps.execute("PRAGMA mmap_size=67108864")
@@ -39,19 +54,24 @@ def db_cursors_multi(playmode, beatmaps_db_location, scores_db_location):
     con_scores.execute("PRAGMA mmap_size=8589934592")
     con_scores.row_factory = lambda cursor, row: row[0]
     cur_scores_single = con_scores.cursor()
-    con_scores.row_factory = lambda cursor, row: (counts_to_accuracy(*row[0:6], playmode=playmode), row[6])
-    cur_scores_acc_time = con_scores.cursor()
-    return cur_beatmaps, cur_scores_single, cur_scores_acc_time
+    con_scores.row_factory = lambda cursor, row: (counts_to_accuracy(*row[:6], playmode=playmode),
+                                                  hit_proportion(*row[:4]),
+                                                  hit_accuracy(*row[:3]),
+                                                  *row[-2:])
+    cur_scores_data = con_scores.cursor()
+    return cur_beatmaps, cur_scores_single, cur_scores_data
 
 
-def db_cursors_single(beatmapsets_db_location, scores_db_location):
+def db_cursors_single(beatmapsets_db_location, attribs_location, scores_db_location):
     con_beatmapsets = sqlite3.connect(beatmapsets_db_location)
     con_beatmapsets.row_factory = lambda cursor, row: row[0]
     cur_beatmapsets = con_beatmapsets.cursor()
+    con_attribs = sqlite3.connect(attribs_location)
+    cur_attribs = con_attribs.cursor()
     con_scores = sqlite3.connect(scores_db_location)
     con_scores.execute("PRAGMA mmap_size=8589934592")
     cur_scores = con_scores.cursor()
-    return cur_beatmapsets, cur_scores
+    return cur_beatmapsets, cur_attribs, cur_scores
 
 
 def db_location(game_mode, dump_type, dump_date):
@@ -81,12 +101,18 @@ def db_tables(game_mode):
     return scores_table, user_stats_table
 
 
-def query_accs_times(cursor, scores_table, users, beatmap_id, enabled_mods):
-    query = f"SELECT count50, count100, count300, countmiss, countgeki, countkatu, date FROM {scores_table} " \
-            f"WHERE user_id IN {users} AND beatmap_id == ? AND enabled_mods == ?"
+def full_combos(cursor):
+    query = "SELECT DISTINCT beatmap_id, value FROM osu_beatmap_difficulty_attribs WHERE attrib_id == 9"
+    fcs = cursor.execute(query)
+    return fcs
+
+
+def query_data(cursor, scores_table, users, beatmap_id, enabled_mods):
+    query = f"SELECT count50, count100, count300, countmiss, countgeki, countkatu, maxcombo, date " \
+            f"FROM {scores_table} WHERE user_id IN {users} AND beatmap_id == ? AND enabled_mods == ?"
     user_scores = list(cursor.execute(query, (beatmap_id, enabled_mods)))
-    user_accs, user_times = zip(*user_scores)
-    return user_accs, user_times
+    user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times = zip(*user_scores)
+    return user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times
 
 
 def query_beatmapset_beatmaps(cursor, beatmapset):
