@@ -50,7 +50,7 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     return graph
 
 
-def form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_2, i1, i2, fcs, thresh, report=False):
+def form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_2, i1, i2, fcs, thresh):
     """Form a directed edge between two maps if the number of common users exceeds a threshold."""
     shared_users = tuple(query_shared_users(cur_scores_single, scores_tab, *map_1, *map_2))
     if len(shared_users) >= thresh:
@@ -76,8 +76,6 @@ def form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_
                 for prop, w in weights.items():
                     e = graph.edge(v1, v2, add_missing=True)
                     graph.ep[prop][e] = w
-            elif report:
-                print(f"Map pair has an undefined t-statistic. Skipping edge formation {(map_1, map_2)}.")
 
 
 def graph_add_names(graph, vertex_names):
@@ -95,11 +93,12 @@ def graph_intrabms(bmsets, ranked_mods, fcs, mod_thres, cur_beatmaps, cur_scores
         beatmaps = tuple(query_beatmapset_beatmaps(cur_beatmaps, bms))
         maps = list(query_maps(cur_scores, scores_tab, beatmaps, ranked_mods))
         for idx_1, idx_2 in combinations(range(len(maps)), 2):
-            map_1, map_2 = maps[idx_1], maps[idx_2]
-            map_1_mod, map_2_mod = map_1[1], map_2[1]
-            if map_1_mod != 0 and map_2_mod != 0 and map_1_mod != map_2_mod:
-                form_edge(cur_data, cur_single, scores_tab, bms_graph,
-                          map_1, map_2, idx_1, idx_2, fcs, mod_thres)
+            map_1_mod = Mod(maps[idx_1][1])
+            map_2_mod = Mod(maps[idx_2][1])
+            map_1 = (maps[idx_1][0], map_1_mod)
+            map_2 = (maps[idx_2][0], map_2_mod)
+            if map_1_mod and map_2_mod and (map_1_mod is not map_2_mod):
+                form_edge(cur_data, cur_single, scores_tab, bms_graph, map_1, map_2, idx_1, idx_2, fcs, mod_thres)
         graph_add_names(bms_graph, maps)
         intrabms_graph = graph_union_pair(intrabms_graph, bms_graph)
     return intrabms_graph
@@ -159,9 +158,11 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, bmap_db, scores_db, scores_tab, m
         num_map_pairs = num_mod_maps * num_nomod_maps + num_mod_maps * (num_mod_maps - 1) // 2
     mod_name = readable_mod(mod)
     for idx_1, idx_2 in tqdm(index_pairs, desc=f'Edges ({mod_name})', total=num_map_pairs):  # Form appropriate edges.
-        map_1, map_2 = maps[idx_1], maps[idx_2]
-        map_1_mod, map_2_mod = map_1[1], map_2[1]
-        pair_thresh = mod_thresh if map_1_mod != 0 or map_2_mod != 0 else thresh
+        map_1_mod = Mod(maps[idx_1][1])
+        map_2_mod = Mod(maps[idx_2][1])
+        map_1 = (maps[idx_1][0], map_1_mod)
+        map_2 = (maps[idx_2][0], map_2_mod)
+        pair_thresh = mod_thresh if map_1_mod or map_2_mod else thresh
         form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_2, idx_1, idx_2, fcs, pair_thresh)
     graph_add_names(graph, maps)
     filename = f'temp_{mode}_{mod_name}.gt'
