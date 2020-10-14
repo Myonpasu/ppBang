@@ -1,5 +1,7 @@
 import sqlite3
 
+from mods import equivalent_mods
+
 
 def counts_to_accuracy(count50, count100, count300, countmiss, countgeki, countkatu, playmode=0):
     if playmode == 0:
@@ -120,25 +122,29 @@ def query_beatmapsets(cursor, status_names):
 
 
 def query_data(cursor, scores_table, users, beatmap_id, enabled_mods):
-    query = f"SELECT count50, count100, count300, countmiss, countgeki, countkatu, maxcombo, date " \
-            f"FROM {scores_table} WHERE user_id IN {users} AND beatmap_id == ? AND enabled_mods == ?"
-    user_scores = list(cursor.execute(query, (beatmap_id, enabled_mods)))
+    mods = equivalent_mods(enabled_mods)
+    # See https://www.sqlite.org/lang_select.html#bareagg for information on bare columns with GROUP BY.
+    query = f"SELECT count50, count100, count300, countmiss, countgeki, countkatu, max(score), maxcombo, date " \
+            f"FROM {scores_table} WHERE user_id IN {users} AND beatmap_id == ? " \
+            f"AND enabled_mods IN ({', '.join('?' * len(mods))}) GROUP BY user_id"
+    user_scores = list(cursor.execute(query, (beatmap_id, *mods)))
     user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times = zip(*user_scores)
     return user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times
 
 
-def query_maps(cursor, scores_table, beatmaps, mods):
+def query_maps(cursor, scores_table, beatmaps, enabled_mods):
     query = f"SELECT DISTINCT beatmap_id, enabled_mods FROM {scores_table} " \
-            f"WHERE beatmap_id IN ({', '.join('?' * len(beatmaps))}) AND enabled_mods IN ({', '.join('?' * len(mods))})"
-    maps = cursor.execute(query, beatmaps + mods)
+            f"WHERE beatmap_id IN ({', '.join('?' * len(beatmaps))}) " \
+            f"AND enabled_mods IN ({', '.join('?' * len(enabled_mods))})"
+    maps = cursor.execute(query, beatmaps + enabled_mods)
     return maps
 
 
-def query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, status_names, threshold, enabled_mod):
+def query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, status_names, threshold, enabled_mods):
+    mods = equivalent_mods(enabled_mods)
     filtered_beatmaps = tuple(cur_scores_single.execute(
-        f"SELECT beatmap_id FROM {scores_table} "
-        "GROUP BY beatmap_id "
-        "HAVING SUM(CASE enabled_mods WHEN ? THEN 1 ELSE 0 END) >= ?", (enabled_mod, threshold)))
+        f"SELECT beatmap_id FROM {scores_table} WHERE enabled_mods IN ({', '.join('?' * len(mods))}) "
+        "GROUP BY beatmap_id HAVING COUNT(DISTINCT user_id) >= ?", (*mods, threshold)))
     # Correctly format query when searching for only a single beatmap.
     if len(filtered_beatmaps) == 1:
         filtered_beatmaps = f'({filtered_beatmaps[0]})'
@@ -147,17 +153,19 @@ def query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, status_na
         "SELECT beatmap_id FROM osu_beatmaps "
         f"WHERE approved IN ({', '.join('?' * len(statuses))}) "
         f"AND beatmap_id IN {filtered_beatmaps}", statuses)
-    maps = [(beatmap_id, enabled_mod) for beatmap_id in beatmaps]
+    maps = [(beatmap_id, enabled_mods) for beatmap_id in beatmaps]
     return maps
 
 
 def query_shared_users(cursor, scores_table, beatmap_id_1, enabled_mods_1, beatmap_id_2, enabled_mods_2):
+    mods_1 = equivalent_mods(enabled_mods_1)
+    mods_2 = equivalent_mods(enabled_mods_2)
     query = f"SELECT user_id FROM {scores_table} " \
-            "WHERE beatmap_id == ? AND enabled_mods == ? " \
+            f"WHERE beatmap_id == ? AND enabled_mods IN ({', '.join('?' * len(mods_1))}) " \
             "INTERSECT " \
             f"SELECT user_id FROM {scores_table} " \
-            "WHERE beatmap_id == ? AND enabled_mods == ?"
-    users = cursor.execute(query, (beatmap_id_1, enabled_mods_1, beatmap_id_2, enabled_mods_2))
+            f"WHERE beatmap_id == ? AND enabled_mods IN ({', '.join('?' * len(mods_2))})"
+    users = cursor.execute(query, (beatmap_id_1, *mods_1, beatmap_id_2, *mods_2))
     return users
 
 
