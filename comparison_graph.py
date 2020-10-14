@@ -146,8 +146,7 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, bmap_db, scores_db, scores_tab, m
         index_pairs = combinations(nomod_indices, 2)
         num_map_pairs = num_nomod_maps * (num_nomod_maps - 1) // 2
     else:
-        query_maps_approved_args = cur_beatmaps, cur_scores_single, scores_tab, statuses, mod_thresh, mod
-        mod_maps = query_maps_approved(*query_maps_approved_args)
+        mod_maps = query_maps_approved(cur_beatmaps, cur_scores_single, scores_tab, statuses, mod_thresh, mod)
         maps = nomod_maps + mod_maps
         num_mod_maps = len(mod_maps)
         num_maps = num_nomod_maps + num_mod_maps
