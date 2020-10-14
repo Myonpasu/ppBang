@@ -31,14 +31,14 @@ def counts_to_accuracy(count50, count100, count300, countmiss, countgeki, countk
 
 
 def hit_proportion(count50, count100, count300, countmiss):
-    # Proportion of notes not missed for osu!standard.
+    """Return proportion of notes not missed for osu!standard."""
     total_notes = count50 + count100 + count300 + countmiss
     acc = 1 - countmiss / total_notes
     return acc
 
 
 def hit_accuracy(count50, count100, count300):
-    # Accuracy on the notes that were hit for osu!standard.
+    """Return accuracy on the notes that were hit for osu!standard."""
     total_hits = count50 + count100 + count300
     acc = (count50 / 6 + count100 / 3 + count300)
     acc /= total_hits
@@ -107,14 +107,6 @@ def full_combos(cursor):
     return fcs
 
 
-def query_data(cursor, scores_table, users, beatmap_id, enabled_mods):
-    query = f"SELECT count50, count100, count300, countmiss, countgeki, countkatu, maxcombo, date " \
-            f"FROM {scores_table} WHERE user_id IN {users} AND beatmap_id == ? AND enabled_mods == ?"
-    user_scores = list(cursor.execute(query, (beatmap_id, enabled_mods)))
-    user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times = zip(*user_scores)
-    return user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times
-
-
 def query_beatmapset_beatmaps(cursor, beatmapset):
     beatmaps = cursor.execute("SELECT beatmap_id FROM osu_beatmaps WHERE beatmapset_id == ?", (beatmapset,))
     return beatmaps
@@ -125,6 +117,14 @@ def query_beatmapsets(cursor, status_names):
     beatmapsets = cursor.execute(
         f"SELECT beatmapset_id FROM osu_beatmapsets WHERE approved IN ({', '.join('?' * len(statuses))})", statuses)
     return beatmapsets
+
+
+def query_data(cursor, scores_table, users, beatmap_id, enabled_mods):
+    query = f"SELECT count50, count100, count300, countmiss, countgeki, countkatu, maxcombo, date " \
+            f"FROM {scores_table} WHERE user_id IN {users} AND beatmap_id == ? AND enabled_mods == ?"
+    user_scores = list(cursor.execute(query, (beatmap_id, enabled_mods)))
+    user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times = zip(*user_scores)
+    return user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times
 
 
 def query_maps(cursor, scores_table, beatmaps, mods):
