@@ -125,8 +125,9 @@ def query_data(cursor, scores_table, users, beatmap_id, enabled_mods):
     mods = equivalent_mods(enabled_mods)
     # See https://www.sqlite.org/lang_select.html#bareagg for information on bare columns with GROUP BY.
     query = f"SELECT count50, count100, count300, countmiss, countgeki, countkatu, max(score), maxcombo, date " \
-            f"FROM {scores_table} WHERE user_id IN {users} AND beatmap_id == ? " \
-            f"AND enabled_mods IN ({', '.join('?' * len(mods))}) GROUP BY user_id"
+            f"FROM {scores_table} " \
+            f"WHERE user_id IN {users} AND beatmap_id == ? AND enabled_mods IN ({', '.join('?' * len(mods))}) " \
+            f"GROUP BY user_id ORDER BY user_id"
     user_scores = list(cursor.execute(query, (beatmap_id, *mods)))
     user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times = zip(*user_scores)
     return user_accs, user_hit_proportions, user_hit_accs, user_combos, user_times
@@ -162,10 +163,10 @@ def query_shared_users(cursor, scores_table, beatmap_id_1, enabled_mods_1, beatm
     mods_2 = equivalent_mods(enabled_mods_2)
     query = f"SELECT user_id FROM {scores_table} " \
             f"WHERE beatmap_id == ? AND enabled_mods IN ({', '.join('?' * len(mods_1))}) " \
-            "INTERSECT " \
+            f"INTERSECT " \
             f"SELECT user_id FROM {scores_table} " \
             f"WHERE beatmap_id == ? AND enabled_mods IN ({', '.join('?' * len(mods_2))})"
-    users = cursor.execute(query, (beatmap_id_1, *mods_1, beatmap_id_2, *mods_2))
+    users = tuple(cursor.execute(query, (beatmap_id_1, *mods_1, beatmap_id_2, *mods_2)))
     return users
 
 

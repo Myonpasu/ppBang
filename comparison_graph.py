@@ -52,10 +52,12 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
 
 def form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_2, i1, i2, fcs, thresh):
     """Form a directed edge between two maps if the number of common users exceeds a threshold."""
-    shared_users = tuple(query_shared_users(cur_scores_single, scores_tab, *map_1, *map_2))
+    shared_users = query_shared_users(cur_scores_single, scores_tab, *map_1, *map_2)
     if len(shared_users) >= thresh:
-        accs_1, hit_props_1, hit_accs_1, coms_1, times_1 = query_data(cur_scores_data, scores_tab, shared_users, *map_1)
-        accs_2, hit_props_2, hit_accs_2, coms_2, times_2 = query_data(cur_scores_data, scores_tab, shared_users, *map_2)
+        data_query_1 = query_data(cur_scores_data, scores_tab, shared_users, *map_1)
+        data_query_2 = query_data(cur_scores_data, scores_tab, shared_users, *map_2)
+        accs_1, hit_props_1, hit_accs_1, coms_1, times_1 = data_query_1
+        accs_2, hit_props_2, hit_accs_2, coms_2, times_2 = data_query_2
         time_weights = timedelta_weights(times_1, times_2)
         if (time_weights > 0).sum() >= thresh:  # Check at least threshold score pairs were set within cutoff time.
             combos_1 = np.asarray(coms_1) / fcs[map_1[0]]
