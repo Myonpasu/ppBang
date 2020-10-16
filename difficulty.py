@@ -26,7 +26,7 @@ def diffs_iterative(graph, epsilon=1e-4):
     neighbor_diff_sum = graph.new_vp('double')
     delta = 1 + epsilon
     iteration = 1
-    print(f'Beginning iteration with epsilon = {epsilon}')
+    print(f'Beginning iterations with epsilon = {epsilon}')
     while delta >= epsilon:
         for i in tqdm(graph.vertices(), total=vertex_count, desc=f'Iteration {iteration}'):
             neighbor_diff_sum[i] = graph.get_all_neighbors(i, vprops=[diffs])[:, 1].sum()
