@@ -213,7 +213,7 @@ def tstat_paired_weighted(a, b, weights):
         return np.nan
     sumsquares = np.dot((data - mean) ** 2, weights)
     correction = sum_weights - sum_weight_squares / sum_weights  # Should never be zero if at least two nonzero weights.
-    if correction == 0:
+    if correction <= 0:
         return np.nan
     var = sumsquares / correction
     # Remove cases where the corrected sample standard deviation is at most 1% (an arbitrary choice).
