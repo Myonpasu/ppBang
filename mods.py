@@ -11,10 +11,10 @@ class Mod(IntFlag):
     SD = 32
     DT = 64
     HT = 256
-    NC = 512  # Only set along with DT; NC only gives 576.
+    NC = 512  # Only set along with DT; NC only ever gives 576.
     FL = 1024
     SO = 4096
-    PF = 16384  # Only set along with SD; PF only gives 16416.
+    PF = 16384  # Only set along with SD; PF only ever gives 16416.
 
 
 def allowed_mods():
