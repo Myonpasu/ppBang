@@ -23,10 +23,11 @@ def diffs_iterative(graph, epsilon=1e-4, mean_diff=5):
     weight_term = weight_net * vertex_count * mean_diff / (max_weight * (vertex_count - 1))
     diffs = graph.new_vp('double', val=mean_diff)
     neighbor_diff_sum = graph.new_vp('double')
+    epsilon *= vertex_count * mean_diff
     delta = 1 + epsilon
     iteration = 1
     print(f'Beginning iterations with epsilon = {epsilon}')
-    while delta >= vertex_count * mean_diff * epsilon:
+    while delta >= epsilon:
         for i in tqdm(graph.vertices(), total=vertex_count, desc=f'Iteration {iteration}'):
             neighbor_diff_sum[i] = graph.get_all_neighbors(i, vprops=[diffs])[:, 1].sum()
         new_diffs = (neighbor_diff_sum.a + weight_term) / k
