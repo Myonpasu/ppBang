@@ -60,8 +60,13 @@ def form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_
         accs_2, hit_props_2, hit_accs_2, coms_2, times_2 = data_query_2
         time_weights = timedelta_weights(times_1, times_2)
         if (time_weights > 0).sum() >= thresh:  # Check at least threshold score pairs were set within cutoff time.
-            combos_1 = np.asarray(coms_1) / fcs[map_1[0]]
-            combos_2 = np.asarray(coms_2) / fcs[map_2[0]]
+            try:  # Max combo cannot be retrieved from osu_beatmap_difficulty_attribs for certain beatmaps.
+                fc_combo_1 = fcs[map_1[0]]
+                fc_combo_2 = fcs[map_2[0]]
+            except KeyError:
+                return
+            combos_1 = np.asarray(coms_1) / fc_combo_1
+            combos_2 = np.asarray(coms_2) / fc_combo_2
             t_acc = tstat_paired_weighted(accs_1, accs_2, time_weights)
             t_hit_props = tstat_paired_weighted(hit_props_1, hit_props_2, time_weights)
             t_hit_accs = tstat_paired_weighted(hit_accs_1, hit_accs_2, time_weights)
@@ -232,7 +237,7 @@ if __name__ == '__main__':
     # Top 10000 players ('top') or random ('random') data dump?
     data_dump_type = 'top'
     # Date of dump to use.
-    data_dump_date = '2020_03_01'
+    data_dump_date = '2020_12_01'
     # Beatmap difficulties will be calculated for the following beatmapset ranked statuses.
     status_names = {'ranked', 'approved', 'loved'}
     # Output filename and extension.
