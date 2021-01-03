@@ -72,10 +72,10 @@ def form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_
             t_hit_accs = tstat_paired_weighted(hit_accs_1, hit_accs_2, time_weights)
             t_combo = tstat_paired_weighted(combos_1, combos_2, time_weights)
             weights = {
-                'weight_accuracy': t_acc,
-                'weight_hit_proportion': t_hit_props,
-                'weight_hit_accuracy': t_hit_accs,
-                'weight_combo': t_combo
+                'accuracy': t_acc,
+                'hit_proportion': t_hit_props,
+                'hit_accuracy': t_hit_accs,
+                'combo': t_combo
             }
             if not np.any(np.isnan(list(weights.values()))):
                 v1 = graph.vertex(i1, add_missing=True)
@@ -115,10 +115,10 @@ def graph_spawn():
     """Return an empty directed graph with internal name and weight properties."""
     graph = gt.Graph(directed=True)
     graph.vp.name = graph.new_vp('vector<int>')
-    graph.ep.weight_accuracy = graph.new_ep('double', val=0)
-    graph.ep.weight_hit_proportion = graph.new_ep('double', val=0)
-    graph.ep.weight_hit_accuracy = graph.new_ep('double', val=0)
-    graph.ep.weight_combo = graph.new_ep('double', val=0)
+    graph.ep.accuracy = graph.new_ep('double', val=0)
+    graph.ep.hit_proportion = graph.new_ep('double', val=0)
+    graph.ep.hit_accuracy = graph.new_ep('double', val=0)
+    graph.ep.combo = graph.new_ep('double', val=0)
     return graph
 
 
