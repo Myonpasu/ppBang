@@ -17,7 +17,7 @@ from mods import allowed_mods
 from mods import readable_mod
 
 
-def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_threshold=6):
+def construct_graph(mode, dump_type, dump_date, statuses, threshold=3):
     # Preparation for database queries.
     playmode = play_mode(mode)
     beatmaps_db_loc, beatmapsets_loc, scores_loc, attribs_loc = db_location(mode, dump_type, dump_date)
@@ -31,13 +31,13 @@ def construct_graph(mode, dump_type, dump_date, statuses, threshold=30, mod_thre
     nomod_maps = query_maps_approved(cur_beatmaps, cur_scores_single, scores_table, statuses, threshold, Mod(0))
     num_nomod_maps = len(nomod_maps)
     mod_graph_args = ((m, nomod_maps, num_nomod_maps, beatmaps_db_loc, scores_loc, scores_table,
-                       playmode, statuses, fc_dict, threshold, mod_threshold) for m in ranked_mods)
+                       playmode, statuses, fc_dict, threshold) for m in ranked_mods)
     with ProcessPoolExecutor() as executor:
         mod_graphs = list(executor.map(mod_graph_wrapper, mod_graph_args))
 
     # Form edges between all appropriate intra-beatmapset map pairs.
     beatmapsets = list(query_beatmapsets(cur_beatmapsets, statuses))
-    intrabms_graph_args = (beatmapsets, ranked_mods, fc_dict, mod_threshold, cur_beatmaps, cur_scores,
+    intrabms_graph_args = (beatmapsets, ranked_mods, fc_dict, threshold, cur_beatmaps, cur_scores,
                            cur_scores_data, cur_scores_single, scores_table)
     intrabms_graph = graph_intrabms(*intrabms_graph_args)
     intrabms_filename = f'temp_{playmode}_INTRABMS.gt'
@@ -93,7 +93,7 @@ def graph_add_names(graph, vertex_names):
     graph.remove_vertex(isolated_vertices, fast=True)
 
 
-def graph_intrabms(bmsets, ranked_mods, fcs, mod_thres, cur_beatmaps, cur_scores, cur_data, cur_single, scores_tab):
+def graph_intrabms(bmsets, ranked_mods, fcs, thresh, cur_beatmaps, cur_scores, cur_data, cur_single, scores_tab):
     intrabms_graph = graph_spawn()
     for bms in tqdm(bmsets, desc='Edges (intra-beatmapset)'):
         bms_graph = graph_spawn()
@@ -105,7 +105,7 @@ def graph_intrabms(bmsets, ranked_mods, fcs, mod_thres, cur_beatmaps, cur_scores
             map_1 = (maps[idx_1][0], map_1_mod)
             map_2 = (maps[idx_2][0], map_2_mod)
             if map_1_mod and map_2_mod and (map_1_mod is not map_2_mod):
-                form_edge(cur_data, cur_single, scores_tab, bms_graph, map_1, map_2, idx_1, idx_2, fcs, mod_thres)
+                form_edge(cur_data, cur_single, scores_tab, bms_graph, map_1, map_2, idx_1, idx_2, fcs, thresh)
         graph_add_names(bms_graph, maps)
         intrabms_graph = graph_union_pair(intrabms_graph, bms_graph)
     return intrabms_graph
@@ -144,7 +144,7 @@ def graph_union_pair(g, h):
     return u
 
 
-def mod_graph(mod, nomod_maps, num_nomod_maps, bmap_db, scores_db, scores_tab, mode, statuses, fcs, thresh, mod_thresh):
+def mod_graph(mod, nomod_maps, num_nomod_maps, bmap_db, scores_db, scores_tab, mode, statuses, fcs, thresh):
     graph = graph_spawn()
     cur_beatmaps, cur_scores_single, cur_scores_data = db_cursors_multi(mode, bmap_db, scores_db)
     nomod_indices = range(num_nomod_maps)
@@ -153,7 +153,7 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, bmap_db, scores_db, scores_tab, m
         index_pairs = combinations(nomod_indices, 2)
         num_map_pairs = num_nomod_maps * (num_nomod_maps - 1) // 2
     else:
-        mod_maps = query_maps_approved(cur_beatmaps, cur_scores_single, scores_tab, statuses, mod_thresh, mod)
+        mod_maps = query_maps_approved(cur_beatmaps, cur_scores_single, scores_tab, statuses, thresh, mod)
         maps = nomod_maps + mod_maps
         num_mod_maps = len(mod_maps)
         num_maps = num_nomod_maps + num_mod_maps
@@ -168,7 +168,7 @@ def mod_graph(mod, nomod_maps, num_nomod_maps, bmap_db, scores_db, scores_tab, m
         map_2_mod = Mod(maps[idx_2][1])
         map_1 = (maps[idx_1][0], map_1_mod)
         map_2 = (maps[idx_2][0], map_2_mod)
-        pair_thresh = mod_thresh if map_1_mod or map_2_mod else thresh
+        pair_thresh = thresh if map_1_mod or map_2_mod else thresh
         form_edge(cur_scores_data, cur_scores_single, scores_tab, graph, map_1, map_2, idx_1, idx_2, fcs, pair_thresh)
     graph_add_names(graph, maps)
     filename = f'temp_{mode}_{mod_name}.gt'
